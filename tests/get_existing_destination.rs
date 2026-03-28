@@ -1,6 +1,7 @@
 mod common;
 
 use common::GitGetTest;
+use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 use std::fs;
 
@@ -21,6 +22,26 @@ fn running_get_twice_on_the_same_url_no_ops_on_the_second_run() {
 }
 
 #[test]
+fn rerun_without_pull_prints_the_already_cloned_message_with_the_destination() {
+    let harness = GitGetTest::new();
+    let root_dir = harness.seed_root_dir();
+    let url = "git@github.com:owner/repo.git";
+    let destination = root_dir.join("github.com/owner/repo");
+
+    harness.cmd().args(["get", url]).assert().success();
+
+    harness
+        .cmd()
+        .args(["get", url])
+        .assert()
+        .success()
+        .stdout(contains(format!(
+            "Already cloned at {}",
+            destination.display()
+        )));
+}
+
+#[test]
 fn pull_flag_defaults_to_false_on_a_plain_rerun() {
     let harness = GitGetTest::new();
     harness.seed_root_dir();
@@ -30,6 +51,22 @@ fn pull_flag_defaults_to_false_on_a_plain_rerun() {
     harness.cmd().args(["get", url]).assert().success();
 
     assert!(harness.stub_git.calls_starting_with("-C\t").is_empty());
+}
+
+#[test]
+fn pull_prints_no_git_get_message_and_shows_gits_own_pull_output() {
+    let harness = GitGetTest::new();
+    harness.seed_root_dir();
+    let url = "git@github.com:owner/repo.git";
+
+    harness.cmd().args(["get", url]).assert().success();
+
+    harness
+        .cmd()
+        .args(["get", url, "--pull"])
+        .assert()
+        .success()
+        .stdout(contains("stub-git: already up to date").and(contains("Already cloned at").not()));
 }
 
 #[test]

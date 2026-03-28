@@ -45,13 +45,23 @@ fn run_get(args: GetArgs) -> anyhow::Result<()> {
     let destination = destination::destination_path(&PathBuf::from(root_dir), &parsed);
 
     match existing_clone_state(&destination) {
+        // No git-get message here by design: git's own pull output (diffstat,
+        // "Already up to date.", ...) is what the user should see instead.
         DestinationState::AlreadyCloned if args.pull => git_ops::pull(&destination),
-        DestinationState::AlreadyCloned => Ok(()),
+        DestinationState::AlreadyCloned => {
+            println!("Already cloned at {}", destination.display());
+            Ok(())
+        }
         DestinationState::Occupied => anyhow::bail!(
             "{} already exists and is not a git repository (no .git directory) - refusing to clone into it",
             destination.display()
         ),
-        DestinationState::Free => git_ops::clone(&args.url, &destination),
+        DestinationState::Free => {
+            println!("Cloning {} into {}...", args.url, destination.display());
+            git_ops::clone(&args.url, &destination)?;
+            println!("Cloned into {}", destination.display());
+            Ok(())
+        }
     }
 }
 
