@@ -5,6 +5,10 @@ use common::GitGetTest;
 #[test]
 fn get_with_explicit_subcommand_parses() {
     let harness = GitGetTest::new();
+    let root_dir = harness.home_dir.join("root");
+    harness
+        .stub_git
+        .seed_config("git-get.root-dir", root_dir.to_str().unwrap());
     harness
         .cmd()
         .args(["get", "git@github.com:owner/repo.git"])
@@ -15,6 +19,10 @@ fn get_with_explicit_subcommand_parses() {
 #[test]
 fn get_via_default_subcommand_parses() {
     let harness = GitGetTest::new();
+    let root_dir = harness.home_dir.join("root");
+    harness
+        .stub_git
+        .seed_config("git-get.root-dir", root_dir.to_str().unwrap());
     harness
         .cmd()
         .arg("git@github.com:owner/repo.git")
@@ -25,6 +33,10 @@ fn get_via_default_subcommand_parses() {
 #[test]
 fn get_with_pull_and_category_flags_parses() {
     let harness = GitGetTest::new();
+    let root_dir = harness.home_dir.join("root");
+    harness
+        .stub_git
+        .seed_config("git-get.root-dir", root_dir.to_str().unwrap());
     harness
         .cmd()
         .args([
