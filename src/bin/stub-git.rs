@@ -1,8 +1,9 @@
 //! A stand-in for the real `git` binary, injected earlier on `PATH` in acceptance
 //! tests so no test ever touches a developer's real gitconfig or network.
 use std::env;
+use std::fmt::Write as _;
 use std::fs;
-use std::io::Write;
+use std::io::Write as _;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -28,9 +29,9 @@ fn main() -> ExitCode {
     }
 
     match args.first().map(String::as_str) {
-        Some("config") => handle_config(&args[1..]),
-        Some("clone") => handle_clone(&args[1..]),
-        Some("-C") => handle_dash_c(&args[1..]),
+        Some("config") => handle_config(args.get(1..).unwrap_or_default()),
+        Some("clone") => handle_clone(args.get(1..).unwrap_or_default()),
+        Some("-C") => handle_dash_c(args.get(1..).unwrap_or_default()),
         _ => ExitCode::FAILURE,
     }
 }
@@ -42,10 +43,8 @@ fn main() -> ExitCode {
 /// call `get` makes first to read `root-dir`. Unset means "every call" -
 /// the original, unscoped behavior most tests still rely on.
 fn forced_failure_applies(args: &[String]) -> bool {
-    match env::var("GIT_GET_STUB_FAIL_ON") {
-        Ok(target) => args.first().map(String::as_str) == Some(target.as_str()),
-        Err(_) => true,
-    }
+    env::var("GIT_GET_STUB_FAIL_ON")
+        .map_or(true, |target| args.first().map(String::as_str) == Some(target.as_str()))
 }
 
 /// `git -C <dir> pull`, as issued by `git_ops::pull` to run `pull` against a
@@ -95,7 +94,10 @@ fn write_store(entries: &[(String, String)]) {
     let Some(path) = config_store_path() else {
         return;
     };
-    let contents: String = entries.iter().map(|(k, v)| format!("{k}={v}\n")).collect();
+    let contents = entries.iter().fold(String::new(), |mut acc, (k, v)| {
+        let _ = writeln!(acc, "{k}={v}");
+        acc
+    });
     let _ = fs::write(path, contents);
 }
 
@@ -117,7 +119,7 @@ fn handle_config(args: &[String]) -> ExitCode {
         [flag, key, value] if flag == "--global" => {
             let mut store = read_store();
             match store.iter_mut().find(|(k, _)| k == key) {
-                Some(entry) => entry.1 = value.clone(),
+                Some(entry) => entry.1.clone_from(value),
                 None => store.push((key.clone(), value.clone())),
             }
             write_store(&store);
