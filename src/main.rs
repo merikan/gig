@@ -17,9 +17,12 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse_from(normalize_args(std::env::args().collect()));
 
     match cli.command {
-        Commands::Get(args) => run_get(args),
+        Commands::Get(args) => run_get(&args),
         Commands::Config { command } => run_config(command),
-        Commands::List => run_list(),
+        Commands::List => {
+            run_list();
+            Ok(())
+        }
     }
 }
 
@@ -38,7 +41,7 @@ fn normalize_args(mut args: Vec<String>) -> Vec<String> {
     args
 }
 
-fn run_get(args: GetArgs) -> anyhow::Result<()> {
+fn run_get(args: &GetArgs) -> anyhow::Result<()> {
     let root_dir =
         git_config::get(ROOT_DIR_KEY)?.ok_or_else(|| anyhow::anyhow!(ROOT_DIR_UNSET_MESSAGE))?;
     let parsed = url_parser::parse(&args.url)?;
@@ -101,6 +104,4 @@ fn run_config(command: ConfigCommand) -> anyhow::Result<()> {
     }
 }
 
-fn run_list() -> anyhow::Result<()> {
-    Ok(())
-}
+const fn run_list() {}

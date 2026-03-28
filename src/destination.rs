@@ -12,6 +12,7 @@ pub fn destination_path(root_dir: &Path, parsed: &ParsedUrl) -> PathBuf {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::url_parser;

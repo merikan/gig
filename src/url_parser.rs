@@ -59,7 +59,7 @@ fn build(url: &str, host: &str, path: &str) -> Result<ParsedUrl, ParseError> {
 
     Ok(ParsedUrl {
         host: host.to_string(),
-        path_segments: path_segments.iter().map(|s| s.to_string()).collect(),
+        path_segments: path_segments.iter().map(ToString::to_string).collect(),
         repo_name: repo_name.to_string(),
     })
 }
@@ -77,7 +77,7 @@ mod tests {
     fn parsed(host: &str, path_segments: &[&str], repo_name: &str) -> ParsedUrl {
         ParsedUrl {
             host: host.to_string(),
-            path_segments: path_segments.iter().map(|s| s.to_string()).collect(),
+            path_segments: path_segments.iter().map(ToString::to_string).collect(),
             repo_name: repo_name.to_string(),
         }
     }
