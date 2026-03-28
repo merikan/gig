@@ -19,3 +19,18 @@ pub fn clone(url: &str, destination: &Path) -> Result<()> {
         );
     }
 }
+
+/// `git -C <destination> pull`, refreshing an already-cloned repo in place.
+pub fn pull(destination: &Path) -> Result<()> {
+    let destination = destination.to_string_lossy();
+    let output = run(&["-C", &destination, "pull"])?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        bail!(
+            "git pull in {destination} failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+}

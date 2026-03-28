@@ -73,6 +73,21 @@ fn clone_creates_git_marker_directory() {
 }
 
 #[test]
+fn dash_c_pull_succeeds_and_is_logged_with_the_directory() {
+    let temp = tempfile::tempdir().unwrap();
+    let stub = StubGit::install(temp.path());
+
+    let status = stub
+        .command()
+        .args(["-C", "/some/dest", "pull"])
+        .status()
+        .expect("run stub git -C pull");
+
+    assert!(status.success());
+    assert_eq!(stub.calls(), vec!["-C\t/some/dest\tpull"]);
+}
+
+#[test]
 fn path_lookup_resolves_to_stub_git() {
     // The other tests here invoke the stub by its full path via `StubGit::command`.
     // This is the one test proving `path_env` actually shadows the real `git` when
