@@ -56,6 +56,18 @@ impl StubGit {
             .env("GIT_GET_STUB_CONFIG", &self.config_file);
         cmd
     }
+
+    /// Pre-populates a config key/value directly in the stub's store, bypassing
+    /// git-get - for tests that need a value to already be "set" before the
+    /// invocation under test runs.
+    pub fn seed_config(&self, key: &str, value: &str) {
+        let status = self
+            .command()
+            .args(["config", "--global", key, value])
+            .status()
+            .expect("seed stub git config");
+        assert!(status.success(), "failed to seed stub git config");
+    }
 }
 
 #[cfg(unix)]

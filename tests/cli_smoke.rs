@@ -39,12 +39,15 @@ fn get_with_pull_and_category_flags_parses() {
 
 #[test]
 fn config_root_dir_view_parses() {
+    // root-dir is unset in a fresh harness, so this is expected to fail with a
+    // business error, not a clap parse error - the "set" and "value already set"
+    // cases are covered precisely by tests/config_root_dir.rs.
     let harness = GitGetTest::new();
     harness
         .cmd()
         .args(["config", "root-dir"])
         .assert()
-        .success();
+        .failure();
 }
 
 #[test]

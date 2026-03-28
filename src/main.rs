@@ -1,7 +1,10 @@
 mod cli;
+mod git_config;
 
 use clap::Parser;
 use cli::{Cli, Commands, ConfigCommand, GetArgs};
+
+const ROOT_DIR_KEY: &str = "git-get.root-dir";
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse_from(normalize_args(std::env::args().collect()));
@@ -32,8 +35,20 @@ fn run_get(_args: GetArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_config(_command: ConfigCommand) -> anyhow::Result<()> {
-    Ok(())
+fn run_config(command: ConfigCommand) -> anyhow::Result<()> {
+    match command {
+        ConfigCommand::RootDir { path: Some(path) } => git_config::set_global(ROOT_DIR_KEY, &path),
+        ConfigCommand::RootDir { path: None } => match git_config::get(ROOT_DIR_KEY)? {
+            Some(value) => {
+                println!("{value}");
+                Ok(())
+            }
+            None => anyhow::bail!(
+                "git-get.root-dir is not set. Run `git-get config root-dir <path>` to set it."
+            ),
+        },
+        ConfigCommand::Category { .. } => Ok(()),
+    }
 }
 
 fn run_list() -> anyhow::Result<()> {
