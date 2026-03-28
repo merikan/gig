@@ -2,8 +2,8 @@
 //! never parses gitconfig files itself and git's own precedence/include rules
 //! keep applying untouched. Shared by every git-get setting (`root-dir` today,
 //! category routing later) rather than being specific to any one key.
-use anyhow::{Context, Result, bail};
-use std::process::{Command, Output};
+use crate::git_cmd::run;
+use anyhow::{Result, bail};
 
 /// `git config --get <key>`. `None` means the key is unset - that's how `git
 /// config --get` itself reports a missing key, via exit code 1. Any other
@@ -38,11 +38,4 @@ pub fn set_global(key: &str, value: &str) -> Result<()> {
             String::from_utf8_lossy(&output.stderr).trim()
         );
     }
-}
-
-fn run(args: &[&str]) -> Result<Output> {
-    Command::new("git")
-        .args(args)
-        .output()
-        .with_context(|| format!("failed to run `git {}`", args.join(" ")))
 }
