@@ -7,7 +7,7 @@ mod url_parser;
 
 use clap::Parser;
 use cli::{Cli, Commands, ConfigCommand, GetArgs};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const ROOT_DIR_KEY: &str = "git-get.root-dir";
 const ROOT_DIR_UNSET_MESSAGE: &str =
@@ -43,7 +43,38 @@ fn run_get(args: GetArgs) -> anyhow::Result<()> {
         git_config::get(ROOT_DIR_KEY)?.ok_or_else(|| anyhow::anyhow!(ROOT_DIR_UNSET_MESSAGE))?;
     let parsed = url_parser::parse(&args.url)?;
     let destination = destination::destination_path(&PathBuf::from(root_dir), &parsed);
-    git_ops::clone(&args.url, &destination)
+
+    match existing_clone_state(&destination) {
+        DestinationState::AlreadyCloned if args.pull => git_ops::pull(&destination),
+        DestinationState::AlreadyCloned => Ok(()),
+        DestinationState::Occupied => anyhow::bail!(
+            "{} already exists and is not a git repository (no .git directory) - refusing to clone into it",
+            destination.display()
+        ),
+        DestinationState::Free => git_ops::clone(&args.url, &destination),
+    }
+}
+
+/// What, if anything, is already at a computed destination path - drives
+/// whether `get` clones, no-ops/pulls, or errors out rather than clobbering
+/// something unrelated.
+enum DestinationState {
+    Free,
+    AlreadyCloned,
+    Occupied,
+}
+
+/// A destination is "already cloned" only if it contains a `.git`
+/// subdirectory; anything else that already exists there (a stray file, an
+/// empty dir, unrelated contents) is `Occupied` rather than clonable.
+fn existing_clone_state(destination: &Path) -> DestinationState {
+    if !destination.exists() {
+        DestinationState::Free
+    } else if destination.join(".git").is_dir() {
+        DestinationState::AlreadyCloned
+    } else {
+        DestinationState::Occupied
+    }
 }
 
 fn run_config(command: ConfigCommand) -> anyhow::Result<()> {

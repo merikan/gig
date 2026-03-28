@@ -29,7 +29,16 @@ fn main() -> ExitCode {
     match args.first().map(String::as_str) {
         Some("config") => handle_config(&args[1..]),
         Some("clone") => handle_clone(&args[1..]),
-        Some("pull") => ExitCode::SUCCESS,
+        Some("-C") => handle_dash_c(&args[1..]),
+        _ => ExitCode::FAILURE,
+    }
+}
+
+/// `git -C <dir> pull`, as issued by `git_ops::pull` to run `pull` against a
+/// specific destination rather than the current working directory.
+fn handle_dash_c(args: &[String]) -> ExitCode {
+    match args {
+        [_dir, cmd] if cmd == "pull" => ExitCode::SUCCESS,
         _ => ExitCode::FAILURE,
     }
 }

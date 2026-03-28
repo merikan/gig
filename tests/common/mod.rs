@@ -49,6 +49,17 @@ impl StubGit {
             .collect()
     }
 
+    /// Just the calls whose tab-joined argv starts with `prefix` (e.g. `"clone\t"`
+    /// or `"-C\t"`) - lets a test isolate the operation it's asserting on from
+    /// incidental setup noise like the `config` calls made while seeding
+    /// `root-dir` or by `get` reading it back.
+    pub fn calls_starting_with(&self, prefix: &str) -> Vec<String> {
+        self.calls()
+            .into_iter()
+            .filter(|call| call.starts_with(prefix))
+            .collect()
+    }
+
     /// Invoke the stub directly (bypassing git-get) for harness-level tests.
     pub fn command(&self) -> StdCommand {
         let mut cmd = StdCommand::new(self.bin_dir.join("git"));
@@ -115,5 +126,15 @@ impl GitGetTest {
             .env("GIT_GET_STUB_CONFIG", &self.stub_git.config_file)
             .current_dir(&self.home_dir);
         cmd
+    }
+
+    /// Seeds `git-get.root-dir` to `<home>/root` directly in the stub's store,
+    /// bypassing `git-get config root-dir`, and returns that path - the common
+    /// precondition every `get`-exercising test needs before it can run.
+    pub fn seed_root_dir(&self) -> PathBuf {
+        let root_dir = self.home_dir.join("root");
+        self.stub_git
+            .seed_config("git-get.root-dir", root_dir.to_str().unwrap());
+        root_dir
     }
 }
