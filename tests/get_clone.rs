@@ -1,6 +1,7 @@
 mod common;
 
 use common::GitGetTest;
+use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 use std::path::Path;
 
@@ -23,6 +24,19 @@ fn scp_style_ssh_url_clones_into_host_owner_repo() {
     harness.cmd().args(["get", url]).assert().success();
 
     assert_cloned(&harness, url, &root_dir.join("github.com/owner/repo"));
+}
+
+#[test]
+fn successful_clone_prints_a_progress_message_then_a_confirmation() {
+    let harness = GitGetTest::new();
+    let root_dir = harness.seed_root_dir();
+    let url = "git@github.com:owner/repo.git";
+    let destination = root_dir.join("github.com/owner/repo");
+
+    harness.cmd().args(["get", url]).assert().success().stdout(
+        contains(format!("Cloning {url} into {}...", destination.display()))
+            .and(contains(format!("Cloned into {}", destination.display()))),
+    );
 }
 
 #[test]
@@ -60,6 +74,32 @@ fn bare_url_without_get_keyword_behaves_like_explicit_get() {
     harness.cmd().arg(url).assert().success();
 
     assert_cloned(&harness, url, &root_dir.join("github.com/owner/repo"));
+}
+
+#[test]
+fn clone_failure_reports_the_exit_code_alongside_gits_own_inherited_error() {
+    let harness = GitGetTest::new();
+    let root_dir = harness.seed_root_dir();
+    let url = "git@github.com:owner/repo.git";
+    let destination = root_dir.join("github.com/owner/repo");
+
+    harness
+        .cmd()
+        .env("GIT_GET_STUB_FAIL_ON", "clone")
+        .env("GIT_GET_STUB_EXIT_CODE", "17")
+        .env(
+            "GIT_GET_STUB_STDERR",
+            "fatal: could not read from remote repository",
+        )
+        .args(["get", url])
+        .assert()
+        .failure()
+        .stderr(
+            contains("fatal: could not read from remote repository").and(contains(format!(
+                "git clone {url} {} failed (exit code 17)",
+                destination.display()
+            ))),
+        );
 }
 
 #[test]

@@ -16,6 +16,7 @@ fn main() -> ExitCode {
     if let Some(forced_exit_code) = env::var("GIT_GET_STUB_EXIT_CODE")
         .ok()
         .and_then(|v| v.parse::<u8>().ok())
+        && forced_failure_applies(&args)
     {
         if let Ok(stdout) = env::var("GIT_GET_STUB_STDOUT") {
             print!("{stdout}");
@@ -34,11 +35,29 @@ fn main() -> ExitCode {
     }
 }
 
+/// Whether `GIT_GET_STUB_EXIT_CODE` should apply to this invocation.
+/// `GIT_GET_STUB_FAIL_ON`, if set, scopes the forced failure to invocations
+/// whose first argument matches it (e.g. `"clone"`), so a test can force just
+/// the clone/pull call to fail without also failing the `config --get`
+/// call `get` makes first to read `root-dir`. Unset means "every call" -
+/// the original, unscoped behavior most tests still rely on.
+fn forced_failure_applies(args: &[String]) -> bool {
+    match env::var("GIT_GET_STUB_FAIL_ON") {
+        Ok(target) => args.first().map(String::as_str) == Some(target.as_str()),
+        Err(_) => true,
+    }
+}
+
 /// `git -C <dir> pull`, as issued by `git_ops::pull` to run `pull` against a
-/// specific destination rather than the current working directory.
+/// specific destination rather than the current working directory. Prints a
+/// canned line to stdout, standing in for git's own pull output, so tests can
+/// assert it passes through git-get's inherited-stdio invocation untouched.
 fn handle_dash_c(args: &[String]) -> ExitCode {
     match args {
-        [_dir, cmd] if cmd == "pull" => ExitCode::SUCCESS,
+        [_dir, cmd] if cmd == "pull" => {
+            println!("stub-git: already up to date");
+            ExitCode::SUCCESS
+        }
         _ => ExitCode::FAILURE,
     }
 }
