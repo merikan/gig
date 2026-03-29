@@ -2,14 +2,14 @@
 
 mod common;
 
-use common::GitGetTest;
+use common::GigTest;
 use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 use std::fs;
 
 #[test]
 fn running_get_twice_on_the_same_url_no_ops_on_the_second_run() {
-    let harness = GitGetTest::new();
+    let harness = GigTest::new();
     harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
 
@@ -25,7 +25,7 @@ fn running_get_twice_on_the_same_url_no_ops_on_the_second_run() {
 
 #[test]
 fn rerun_without_pull_prints_the_already_cloned_message_with_the_destination() {
-    let harness = GitGetTest::new();
+    let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
     let destination = root_dir.join("github.com/owner/repo");
@@ -45,7 +45,7 @@ fn rerun_without_pull_prints_the_already_cloned_message_with_the_destination() {
 
 #[test]
 fn pull_flag_defaults_to_false_on_a_plain_rerun() {
-    let harness = GitGetTest::new();
+    let harness = GigTest::new();
     harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
 
@@ -56,8 +56,8 @@ fn pull_flag_defaults_to_false_on_a_plain_rerun() {
 }
 
 #[test]
-fn pull_prints_no_git_get_message_and_shows_gits_own_pull_output() {
-    let harness = GitGetTest::new();
+fn pull_prints_no_gig_message_and_shows_gits_own_pull_output() {
+    let harness = GigTest::new();
     harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
 
@@ -73,7 +73,7 @@ fn pull_prints_no_git_get_message_and_shows_gits_own_pull_output() {
 
 #[test]
 fn pull_flag_invokes_git_pull_in_the_destination_directory_not_clone() {
-    let harness = GitGetTest::new();
+    let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
     let destination = root_dir.join("github.com/owner/repo");
@@ -96,7 +96,7 @@ fn pull_flag_invokes_git_pull_in_the_destination_directory_not_clone() {
 
 #[test]
 fn bare_url_without_get_keyword_with_pull_on_an_already_cloned_repo_pulls() {
-    let harness = GitGetTest::new();
+    let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
     let destination = root_dir.join("github.com/owner/repo");
@@ -115,7 +115,7 @@ fn bare_url_without_get_keyword_with_pull_on_an_already_cloned_repo_pulls() {
 
 #[test]
 fn destination_occupied_by_a_non_git_directory_errors_without_cloning() {
-    let harness = GitGetTest::new();
+    let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
     let destination = root_dir.join("github.com/owner/repo");
@@ -137,7 +137,7 @@ fn destination_occupied_by_a_non_git_directory_errors_without_cloning() {
 
 #[test]
 fn destination_occupied_by_a_stray_file_errors_without_cloning() {
-    let harness = GitGetTest::new();
+    let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
     let destination = root_dir.join("github.com/owner/repo");
@@ -157,7 +157,7 @@ fn destination_occupied_by_a_stray_file_errors_without_cloning() {
 
 #[test]
 fn destination_occupied_by_an_empty_directory_errors_without_cloning() {
-    let harness = GitGetTest::new();
+    let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
     let destination = root_dir.join("github.com/owner/repo");

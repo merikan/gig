@@ -2,7 +2,7 @@ use clap::{Args, Parser, Subcommand};
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "git-get",
+    name = "gig",
     version,
     about = "Clone repos into a predictable host/owner/repo workspace"
 )]
@@ -15,7 +15,7 @@ pub struct Cli {
 pub enum Commands {
     /// Clone a repo by URL, or update it if already cloned
     Get(GetArgs),
-    /// View or set git-get configuration
+    /// View or set gig configuration
     Config {
         #[command(subcommand)]
         command: ConfigCommand,

@@ -10,19 +10,19 @@ use std::process::ExitCode;
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
 
-    if let Ok(log_path) = env::var("GIT_GET_STUB_LOG") {
+    if let Ok(log_path) = env::var("GIG_STUB_LOG") {
         log_call(&log_path, &args);
     }
 
-    if let Some(forced_exit_code) = env::var("GIT_GET_STUB_EXIT_CODE")
+    if let Some(forced_exit_code) = env::var("GIG_STUB_EXIT_CODE")
         .ok()
         .and_then(|v| v.parse::<u8>().ok())
         && forced_failure_applies(&args)
     {
-        if let Ok(stdout) = env::var("GIT_GET_STUB_STDOUT") {
+        if let Ok(stdout) = env::var("GIG_STUB_STDOUT") {
             print!("{stdout}");
         }
-        if let Ok(stderr) = env::var("GIT_GET_STUB_STDERR") {
+        if let Ok(stderr) = env::var("GIG_STUB_STDERR") {
             eprint!("{stderr}");
         }
         return ExitCode::from(forced_exit_code);
@@ -36,21 +36,22 @@ fn main() -> ExitCode {
     }
 }
 
-/// Whether `GIT_GET_STUB_EXIT_CODE` should apply to this invocation.
-/// `GIT_GET_STUB_FAIL_ON`, if set, scopes the forced failure to invocations
+/// Whether `GIG_STUB_EXIT_CODE` should apply to this invocation.
+/// `GIG_STUB_FAIL_ON`, if set, scopes the forced failure to invocations
 /// whose first argument matches it (e.g. `"clone"`), so a test can force just
 /// the clone/pull call to fail without also failing the `config --get`
 /// call `get` makes first to read `root-dir`. Unset means "every call" -
 /// the original, unscoped behavior most tests still rely on.
 fn forced_failure_applies(args: &[String]) -> bool {
-    env::var("GIT_GET_STUB_FAIL_ON")
-        .map_or(true, |target| args.first().map(String::as_str) == Some(target.as_str()))
+    env::var("GIG_STUB_FAIL_ON").map_or(true, |target| {
+        args.first().map(String::as_str) == Some(target.as_str())
+    })
 }
 
 /// `git -C <dir> pull`, as issued by `git_ops::pull` to run `pull` against a
 /// specific destination rather than the current working directory. Prints a
 /// canned line to stdout, standing in for git's own pull output, so tests can
-/// assert it passes through git-get's inherited-stdio invocation untouched.
+/// assert it passes through gig's inherited-stdio invocation untouched.
 fn handle_dash_c(args: &[String]) -> ExitCode {
     match args {
         [_dir, cmd] if cmd == "pull" => {
@@ -73,7 +74,7 @@ fn log_call(log_path: &str, args: &[String]) {
 }
 
 fn config_store_path() -> Option<PathBuf> {
-    env::var_os("GIT_GET_STUB_CONFIG").map(PathBuf::from)
+    env::var_os("GIG_STUB_CONFIG").map(PathBuf::from)
 }
 
 fn read_store() -> Vec<(String, String)> {
@@ -101,7 +102,7 @@ fn write_store(entries: &[(String, String)]) {
     let _ = fs::write(path, contents);
 }
 
-/// Handles the two `git config` forms git-get uses today: `--get <key>` and
+/// Handles the two `git config` forms gig uses today: `--get <key>` and
 /// `--global <key> <value>`. `--get-regexp` (needed once category routing lands)
 /// isn't implemented yet and falls through to failure like any other unknown form.
 fn handle_config(args: &[String]) -> ExitCode {
@@ -130,7 +131,7 @@ fn handle_config(args: &[String]) -> ExitCode {
 }
 
 /// Simulates a successful `git clone <url> <dest>` by creating a `.git` marker
-/// directory at the destination, which is exactly what git-get's own
+/// directory at the destination, which is exactly what gig's own
 /// already-cloned detection looks for.
 fn handle_clone(args: &[String]) -> ExitCode {
     let Some(dest) = args.last() else {

@@ -1,6 +1,6 @@
-//! Thin wrapper around the system `git` binary's own config store, so git-get
+//! Thin wrapper around the system `git` binary's own config store, so gig
 //! never parses gitconfig files itself and git's own precedence/include rules
-//! keep applying untouched. Shared by every git-get setting (`root-dir` today,
+//! keep applying untouched. Shared by every gig setting (`root-dir` today,
 //! category routing later) rather than being specific to any one key.
 use crate::git_cmd::run;
 use anyhow::{Result, bail};

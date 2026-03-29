@@ -1,4 +1,4 @@
-# git-get
+# gig
 
 A Rust CLI that clones repos into a predictable `root-dir/host/owner/repo` workspace, and recognizes repos already cloned there instead of re-cloning or clobbering them.
 
