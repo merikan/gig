@@ -1,5 +1,5 @@
 //! Shared plumbing for shelling out to the system `git` binary. Every
-//! git-get module that wraps a `git` invocation (`git_config`, `git_ops`, and
+//! gig module that wraps a `git` invocation (`git_config`, `git_ops`, and
 //! eventually category-config) runs it through here rather than each calling
 //! `Command::new("git")` itself.
 use anyhow::{Context, Result};

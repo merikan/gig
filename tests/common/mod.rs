@@ -60,16 +60,16 @@ impl StubGit {
             .collect()
     }
 
-    /// Invoke the stub directly (bypassing git-get) for harness-level tests.
+    /// Invoke the stub directly (bypassing gig) for harness-level tests.
     pub fn command(&self) -> StdCommand {
         let mut cmd = StdCommand::new(self.bin_dir.join("git"));
-        cmd.env("GIT_GET_STUB_LOG", &self.log_file)
-            .env("GIT_GET_STUB_CONFIG", &self.config_file);
+        cmd.env("GIG_STUB_LOG", &self.log_file)
+            .env("GIG_STUB_CONFIG", &self.config_file);
         cmd
     }
 
     /// Pre-populates a config key/value directly in the stub's store, bypassing
-    /// git-get - for tests that need a value to already be "set" before the
+    /// gig - for tests that need a value to already be "set" before the
     /// invocation under test runs.
     pub fn seed_config(&self, key: &str, value: &str) {
         let status = self
@@ -94,9 +94,9 @@ fn set_executable(path: &Path) {
 #[cfg(not(unix))]
 fn set_executable(_path: &Path) {}
 
-/// A `git-get` invocation wired to the stub-git harness with an isolated
+/// A `gig` invocation wired to the stub-git harness with an isolated
 /// HOME/working directory - no test ever touches the developer's real gitconfig.
-pub struct GitGetTest {
+pub struct GigTest {
     pub stub_git: StubGit,
     pub home_dir: PathBuf,
     #[allow(dead_code)]
@@ -104,7 +104,7 @@ pub struct GitGetTest {
     temp_dir: tempfile::TempDir,
 }
 
-impl GitGetTest {
+impl GigTest {
     pub fn new() -> Self {
         let temp_dir = tempfile::tempdir().expect("create temp dir");
         let home_dir = temp_dir.path().join("home");
@@ -119,22 +119,22 @@ impl GitGetTest {
     }
 
     pub fn cmd(&self) -> Command {
-        let mut cmd = Command::cargo_bin("git-get").expect("locate git-get binary");
+        let mut cmd = Command::cargo_bin("gig").expect("locate gig binary");
         cmd.env("PATH", self.stub_git.path_env())
             .env("HOME", &self.home_dir)
-            .env("GIT_GET_STUB_LOG", &self.stub_git.log_file)
-            .env("GIT_GET_STUB_CONFIG", &self.stub_git.config_file)
+            .env("GIG_STUB_LOG", &self.stub_git.log_file)
+            .env("GIG_STUB_CONFIG", &self.stub_git.config_file)
             .current_dir(&self.home_dir);
         cmd
     }
 
-    /// Seeds `git-get.root-dir` to `<home>/root` directly in the stub's store,
-    /// bypassing `git-get config root-dir`, and returns that path - the common
+    /// Seeds `gig.root-dir` to `<home>/root` directly in the stub's store,
+    /// bypassing `gig config root-dir`, and returns that path - the common
     /// precondition every `get`-exercising test needs before it can run.
     pub fn seed_root_dir(&self) -> PathBuf {
         let root_dir = self.home_dir.join("root");
         self.stub_git
-            .seed_config("git-get.root-dir", root_dir.to_str().unwrap());
+            .seed_config("gig.root-dir", root_dir.to_str().unwrap());
         root_dir
     }
 }

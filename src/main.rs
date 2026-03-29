@@ -9,9 +9,9 @@ use clap::Parser;
 use cli::{Cli, Commands, ConfigCommand, GetArgs};
 use std::path::{Path, PathBuf};
 
-const ROOT_DIR_KEY: &str = "git-get.root-dir";
+const ROOT_DIR_KEY: &str = "gig.root-dir";
 const ROOT_DIR_UNSET_MESSAGE: &str =
-    "git-get.root-dir is not set. Run `git-get config root-dir <path>` to set it.";
+    "gig.root-dir is not set. Run `gig config root-dir <path>` to set it.";
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse_from(normalize_args(std::env::args().collect()));
@@ -26,8 +26,8 @@ fn main() -> anyhow::Result<()> {
     }
 }
 
-/// `get` is the default subcommand, so `git-get <url>` must parse the same as
-/// `git-get get <url>` even though clap has no built-in notion of a default subcommand.
+/// `get` is the default subcommand, so `gig <url>` must parse the same as
+/// `gig get <url>` even though clap has no built-in notion of a default subcommand.
 fn normalize_args(mut args: Vec<String>) -> Vec<String> {
     const KNOWN_SUBCOMMANDS: &[&str] = &["get", "config", "list", "help"];
     const HELP_FLAGS: &[&str] = &["-h", "--help", "-V", "--version"];
@@ -48,7 +48,7 @@ fn run_get(args: &GetArgs) -> anyhow::Result<()> {
     let destination = destination::destination_path(&PathBuf::from(root_dir), &parsed);
 
     match existing_clone_state(&destination) {
-        // No git-get message here by design: git's own pull output (diffstat,
+        // No gig message here by design: git's own pull output (diffstat,
         // "Already up to date.", ...) is what the user should see instead.
         DestinationState::AlreadyCloned if args.pull => git_ops::pull(&destination),
         DestinationState::AlreadyCloned => {
