@@ -2,7 +2,7 @@
 _.path = ["./target/debug"]
 
 [tools]
-rust = "latest"
+rust = { version = "latest", components = "rust-analyzer" }
 "cargo:cargo-tarpaulin" = "latest"
 
 [settings]
