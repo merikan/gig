@@ -117,5 +117,6 @@ fn config_category_list_all_parses() {
 #[test]
 fn list_parses() {
     let harness = GigTest::new();
+    harness.seed_root_dir();
     harness.cmd().arg("list").assert().success();
 }
