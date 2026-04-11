@@ -21,6 +21,7 @@ pub enum Commands {
         command: ConfigCommand,
     },
     /// List every repo already cloned under root-dir
+    #[command(alias = "ls")]
     List,
 }
 

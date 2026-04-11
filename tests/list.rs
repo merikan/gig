@@ -29,6 +29,20 @@ fn lists_repos_at_varying_depths_sorted_relative_and_one_per_line() {
 }
 
 #[test]
+fn ls_is_an_alias_for_list() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+    seed_fake_clone(&root_dir, "github.com/owner/repo");
+
+    harness
+        .cmd()
+        .arg("ls")
+        .assert()
+        .success()
+        .stdout("github.com/owner/repo\n");
+}
+
+#[test]
 fn empty_root_dir_produces_empty_output_not_an_error() {
     let harness = GigTest::new();
     harness.seed_root_dir();
