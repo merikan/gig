@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
 /// `get` is the default subcommand, so `gig <url>` must parse the same as
 /// `gig get <url>` even though clap has no built-in notion of a default subcommand.
 fn normalize_args(mut args: Vec<String>) -> Vec<String> {
-    const KNOWN_SUBCOMMANDS: &[&str] = &["get", "config", "list", "help"];
+    const KNOWN_SUBCOMMANDS: &[&str] = &["get", "config", "list", "ls", "help"];
     const HELP_FLAGS: &[&str] = &["-h", "--help", "-V", "--version"];
 
     if let Some(first) = args.get(1)
