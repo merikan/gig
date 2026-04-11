@@ -3,6 +3,7 @@ mod destination;
 mod git_cmd;
 mod git_config;
 mod git_ops;
+mod repo_walk;
 mod url_parser;
 
 use clap::Parser;
@@ -19,10 +20,7 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Get(args) => run_get(&args),
         Commands::Config { command } => run_config(command),
-        Commands::List => {
-            run_list();
-            Ok(())
-        }
+        Commands::List => run_list(),
     }
 }
 
@@ -42,10 +40,9 @@ fn normalize_args(mut args: Vec<String>) -> Vec<String> {
 }
 
 fn run_get(args: &GetArgs) -> anyhow::Result<()> {
-    let root_dir =
-        git_config::get(ROOT_DIR_KEY)?.ok_or_else(|| anyhow::anyhow!(ROOT_DIR_UNSET_MESSAGE))?;
+    let root_dir = root_dir()?;
     let parsed = url_parser::parse(&args.url)?;
-    let destination = destination::destination_path(&PathBuf::from(root_dir), &parsed);
+    let destination = destination::destination_path(&root_dir, &parsed);
 
     match existing_clone_state(&destination) {
         // No gig message here by design: git's own pull output (diffstat,
@@ -104,4 +101,17 @@ fn run_config(command: ConfigCommand) -> anyhow::Result<()> {
     }
 }
 
-const fn run_list() {}
+fn run_list() -> anyhow::Result<()> {
+    for repo in repo_walk::find_repos(&root_dir()?)? {
+        println!("{}", repo.display());
+    }
+    Ok(())
+}
+
+/// The configured `root-dir`, or the actionable "not set" error - the
+/// precondition every `get`/`list` invocation shares.
+fn root_dir() -> anyhow::Result<PathBuf> {
+    git_config::get(ROOT_DIR_KEY)?
+        .map(PathBuf::from)
+        .ok_or_else(|| anyhow::anyhow!(ROOT_DIR_UNSET_MESSAGE))
+}
