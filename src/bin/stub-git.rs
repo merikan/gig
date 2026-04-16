@@ -102,9 +102,8 @@ fn write_store(entries: &[(String, String)]) {
     let _ = fs::write(path, contents);
 }
 
-/// Handles the two `git config` forms gig uses today: `--get <key>` and
-/// `--global <key> <value>`. `--get-regexp` (needed once category routing lands)
-/// isn't implemented yet and falls through to failure like any other unknown form.
+/// Handles the three `git config` forms gig uses today: `--get <key>`,
+/// `--global <key> <value>`, and `--get-regexp <pattern>`.
 fn handle_config(args: &[String]) -> ExitCode {
     match args {
         [flag, key] if flag == "--get" => {
@@ -126,8 +125,37 @@ fn handle_config(args: &[String]) -> ExitCode {
             write_store(&store);
             ExitCode::SUCCESS
         }
+        [flag, pattern] if flag == "--get-regexp" => handle_get_regexp(pattern),
         _ => ExitCode::FAILURE,
     }
+}
+
+/// `git config --get-regexp <pattern>`. gig only ever asks for the one fixed
+/// category-enumeration pattern (`^gig\.category\..*\.pattern$`), so rather
+/// than embedding a real regex engine in the stub, this matches that pattern's
+/// shape directly (`gig.category.<name>.pattern`) and fails closed - the same
+/// unknown-form-fails contract every other unrecognized `git` invocation gets
+/// here - for anything else. Matches print as `<key> <value>`, one per line in
+/// store (declaration) order, exactly like real git - including the trailing
+/// space before the newline real git emits for an empty value.
+fn handle_get_regexp(pattern: &str) -> ExitCode {
+    if pattern != r"^gig\.category\..*\.pattern$" {
+        return ExitCode::FAILURE;
+    }
+
+    let store = read_store();
+    let matches: Vec<_> = store
+        .iter()
+        .filter(|(k, _)| k.starts_with("gig.category.") && k.ends_with(".pattern"))
+        .collect();
+
+    if matches.is_empty() {
+        return ExitCode::FAILURE;
+    }
+    for (key, value) in matches {
+        println!("{key} {value}");
+    }
+    ExitCode::SUCCESS
 }
 
 /// Simulates a successful `git clone <url> <dest>` by creating a `.git` marker

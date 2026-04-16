@@ -39,10 +39,22 @@ pub enum ConfigCommand {
     /// View or set the root-dir where repos are cloned
     RootDir { path: Option<String> },
     /// View, set, or list category routing rules
-    Category {
-        name: Option<String>,
-        pattern: Option<String>,
-        #[arg(long = "flag-only")]
-        flag_only: bool,
-    },
+    Category(CategoryArgs),
+}
+
+/// The four forms `config category` accepts, dispatched by which fields are
+/// present:
+/// - neither `name` nor `pattern` nor `flag_only`: list every declared
+///   category (`<name>\t<pattern>`, one per line, declaration order).
+/// - `name` only: print that category's pattern (error if undeclared).
+/// - `name` + `pattern`: declare/update that category with the given pattern.
+/// - `name` + `--flag-only`: declare that category with an empty pattern.
+///
+/// `pattern` and `flag_only` are mutually exclusive.
+#[derive(Debug, Args)]
+pub struct CategoryArgs {
+    pub name: Option<String>,
+    pub pattern: Option<String>,
+    #[arg(long = "flag-only")]
+    pub flag_only: bool,
 }
