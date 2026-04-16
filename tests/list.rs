@@ -23,9 +23,12 @@ fn lists_repos_at_varying_depths_sorted_relative_and_one_per_line() {
     seed_fake_clone(&root_dir, "github.com/owner/repo");
     seed_fake_clone(&root_dir, "git.sr.ht/~user/repo");
 
-    harness.cmd().arg("list").assert().success().stdout(
-        "git.sr.ht/~user/repo\ngithub.com/owner/repo\ngitlab.com/group/subgroup/repo\n",
-    );
+    harness
+        .cmd()
+        .arg("list")
+        .assert()
+        .success()
+        .stdout("git.sr.ht/~user/repo\ngithub.com/owner/repo\ngitlab.com/group/subgroup/repo\n");
 }
 
 #[test]
