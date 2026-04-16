@@ -86,12 +86,15 @@ fn config_category_set_parses() {
 
 #[test]
 fn config_category_view_parses() {
+    // "personal" is undeclared in a fresh harness, so this is expected to fail
+    // with a business error, not a clap parse error - the full view/set/list
+    // behavior is covered precisely by tests/config_category.rs.
     let harness = GigTest::new();
     harness
         .cmd()
         .args(["config", "category", "personal"])
         .assert()
-        .success();
+        .failure();
 }
 
 #[test]

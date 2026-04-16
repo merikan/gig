@@ -1,3 +1,4 @@
+mod category_config;
 mod cli;
 mod destination;
 mod git_cmd;
@@ -7,7 +8,7 @@ mod repo_walk;
 mod url_parser;
 
 use clap::Parser;
-use cli::{Cli, Commands, ConfigCommand, GetArgs};
+use cli::{CategoryArgs, Cli, Commands, ConfigCommand, GetArgs};
 use std::path::{Path, PathBuf};
 
 const ROOT_DIR_KEY: &str = "gig.root-dir";
@@ -97,8 +98,50 @@ fn run_config(command: ConfigCommand) -> anyhow::Result<()> {
             }
             None => anyhow::bail!(ROOT_DIR_UNSET_MESSAGE),
         },
-        ConfigCommand::Category { .. } => Ok(()),
+        ConfigCommand::Category(args) => run_config_category(args),
     }
+}
+
+/// `config category [<name>] [<pattern>] [--flag-only]` - see the
+/// `CategoryArgs` doc comment in `cli.rs` for the full set of forms.
+fn run_config_category(args: CategoryArgs) -> anyhow::Result<()> {
+    let CategoryArgs {
+        name,
+        pattern,
+        flag_only,
+    } = args;
+    let Some(name) = name else {
+        if flag_only || pattern.is_some() {
+            anyhow::bail!("--flag-only and <pattern> require a category <name>");
+        }
+        return run_config_category_list();
+    };
+
+    match (pattern, flag_only) {
+        (Some(_), true) => anyhow::bail!(
+            "<pattern> and --flag-only are mutually exclusive - `config category {name}` was given both"
+        ),
+        (Some(pattern), false) => category_config::set(&name, &pattern),
+        (None, true) => category_config::set(&name, ""),
+        (None, false) => match category_config::get(&name)? {
+            Some(pattern) => {
+                println!("{pattern}");
+                Ok(())
+            }
+            None => anyhow::bail!(
+                "category '{name}' is not declared. Run `gig config category {name} <pattern>` to declare it."
+            ),
+        },
+    }
+}
+
+/// `config category` with no name: every declared category, one per line,
+/// `<name>\t<pattern>`, in git-config declaration order.
+fn run_config_category_list() -> anyhow::Result<()> {
+    for category in category_config::list()? {
+        println!("{}\t{}", category.name, category.pattern);
+    }
+    Ok(())
 }
 
 fn run_list() -> anyhow::Result<()> {
