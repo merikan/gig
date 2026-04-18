@@ -55,6 +55,7 @@ pub enum ConfigCommand {
 pub struct CategoryArgs {
     pub name: Option<String>,
     pub pattern: Option<String>,
+    /// Declare the category with no pattern, usable only via `--category`
     #[arg(long = "flag-only")]
     pub flag_only: bool,
 }
