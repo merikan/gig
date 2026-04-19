@@ -3,6 +3,8 @@
 mod common;
 
 use common::GigTest;
+use predicates::prelude::PredicateBooleanExt;
+use predicates::str::contains;
 
 #[test]
 fn get_with_explicit_subcommand_parses() {
@@ -105,6 +107,26 @@ fn config_category_flag_only_parses() {
         .args(["config", "category", "oneoff", "--flag-only"])
         .assert()
         .success();
+}
+
+#[test]
+fn config_category_help_includes_three_regex_pattern_examples() {
+    let harness = GigTest::new();
+
+    harness
+        .cmd()
+        .args(["config", "category", "--help"])
+        .assert()
+        .success()
+        .stdout(
+            contains("gig config category personal '^github\\.com/merikan/'")
+                .and(contains(
+                    "gig config category work '^gitlab\\.company\\.com/'",
+                ))
+                .and(contains(
+                    "gig config category oss '^github\\.com/(rust-lang|tokio-rs)/'",
+                )),
+        );
 }
 
 #[test]
