@@ -70,7 +70,22 @@ fn new_error(url: &str) -> ParseError {
     }
 }
 
+impl ParsedUrl {
+    /// The `host/owner/repo`-shaped string category patterns match against -
+    /// the same nested structure the destination-path builder mirrors on
+    /// disk, joined with `/` regardless of the host platform's path
+    /// separator (unlike a `Path`, which would use `\` on Windows).
+    pub fn normalized_path(&self) -> String {
+        let mut segments = Vec::with_capacity(self.path_segments.len().saturating_add(2));
+        segments.push(self.host.as_str());
+        segments.extend(self.path_segments.iter().map(String::as_str));
+        segments.push(self.repo_name.as_str());
+        segments.join("/")
+    }
+}
+
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -121,6 +136,24 @@ mod tests {
 
         for (url, expected) in cases {
             assert_eq!(parse(url).as_ref(), Ok(expected), "parsing `{url}`");
+        }
+    }
+
+    #[test]
+    fn normalized_path_joins_host_path_segments_and_repo_name_with_slashes() {
+        let cases: &[(&str, &str)] = &[
+            ("git@github.com:owner/repo.git", "github.com/owner/repo"),
+            (
+                "https://gitlab.com/group/subgroup/deeper/repo.git",
+                "gitlab.com/group/subgroup/deeper/repo",
+            ),
+            ("git@git.sr.ht:~user/repo", "git.sr.ht/~user/repo"),
+            ("git@example.com:repo.git", "example.com/repo"),
+        ];
+
+        for (url, expected) in cases {
+            let parsed = parse(url).expect("valid url");
+            assert_eq!(parsed.normalized_path(), *expected, "normalizing `{url}`");
         }
     }
 

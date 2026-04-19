@@ -1,4 +1,5 @@
 mod category_config;
+mod category_routing;
 mod cli;
 mod destination;
 mod git_cmd;
@@ -43,7 +44,8 @@ fn normalize_args(mut args: Vec<String>) -> Vec<String> {
 fn run_get(args: &GetArgs) -> anyhow::Result<()> {
     let root_dir = root_dir()?;
     let parsed = url_parser::parse(&args.url)?;
-    let destination = destination::destination_path(&root_dir, &parsed);
+    let destination_root = resolve_destination_root(&root_dir, &parsed)?;
+    let destination = destination::destination_path(&destination_root, &parsed);
 
     match existing_clone_state(&destination) {
         // No gig message here by design: git's own pull output (diffstat,
@@ -64,6 +66,21 @@ fn run_get(args: &GetArgs) -> anyhow::Result<()> {
             Ok(())
         }
     }
+}
+
+/// The root a clone's destination is built under: `root-dir/<category>` if
+/// `parsed`'s normalized `host/owner/repo` string auto-matches a declared
+/// category's pattern (first match in git-config declaration order wins),
+/// `root-dir` itself otherwise. Every declared category's pattern is
+/// compiled here, regardless of whether it ends up matching - an invalid
+/// regex in any of them aborts the run, naming that category.
+fn resolve_destination_root(
+    root_dir: &Path,
+    parsed: &url_parser::ParsedUrl,
+) -> anyhow::Result<PathBuf> {
+    let categories = category_config::list()?;
+    let category = category_routing::resolve(&categories, &parsed.normalized_path())?;
+    Ok(category.map_or_else(|| root_dir.to_path_buf(), |name| root_dir.join(name)))
 }
 
 /// What, if anything, is already at a computed destination path - drives
