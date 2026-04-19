@@ -44,7 +44,7 @@ fn normalize_args(mut args: Vec<String>) -> Vec<String> {
 fn run_get(args: &GetArgs) -> anyhow::Result<()> {
     let root_dir = root_dir()?;
     let parsed = url_parser::parse(&args.url)?;
-    let destination_root = resolve_destination_root(&root_dir, &parsed)?;
+    let destination_root = resolve_destination_root(&root_dir, &parsed, args.category.as_deref())?;
     let destination = destination::destination_path(&destination_root, &parsed);
 
     match existing_clone_state(&destination) {
@@ -69,18 +69,43 @@ fn run_get(args: &GetArgs) -> anyhow::Result<()> {
 }
 
 /// The root a clone's destination is built under: `root-dir/<category>` if
-/// `parsed`'s normalized `host/owner/repo` string auto-matches a declared
-/// category's pattern (first match in git-config declaration order wins),
-/// `root-dir` itself otherwise. Every declared category's pattern is
-/// compiled here, regardless of whether it ends up matching - an invalid
-/// regex in any of them aborts the run, naming that category.
+/// a category applies, `root-dir` itself otherwise. Every declared
+/// category's pattern is compiled here regardless of whether it ends up
+/// matching or is even reachable this invocation - an invalid regex in any
+/// of them aborts the run, naming that category.
+///
+/// Precedence: an explicit `category_override` (the `--category` flag) wins
+/// outright and must reference an already-declared category - otherwise
+/// this errors and no clone is attempted. Absent that, `parsed`'s normalized
+/// `host/owner/repo` string is matched against every declared category's
+/// pattern (first match in git-config declaration order wins).
 fn resolve_destination_root(
     root_dir: &Path,
     parsed: &url_parser::ParsedUrl,
+    category_override: Option<&str>,
 ) -> anyhow::Result<PathBuf> {
     let categories = category_config::list()?;
-    let category = category_routing::resolve(&categories, &parsed.normalized_path())?;
+    let matched = category_routing::resolve(&categories, &parsed.normalized_path())?;
+
+    let category = match category_override {
+        Some(name) => {
+            if !categories.iter().any(|c| c.name == name) {
+                return Err(category_not_declared_error(name));
+            }
+            Some(name.to_string())
+        }
+        None => matched,
+    };
     Ok(category.map_or_else(|| root_dir.to_path_buf(), |name| root_dir.join(name)))
+}
+
+/// The shared "you must declare a category before using it" error, raised
+/// both by `--category <name>` on `get` and by `config category <name>`
+/// (view) on an undeclared name.
+fn category_not_declared_error(name: &str) -> anyhow::Error {
+    anyhow::anyhow!(
+        "category '{name}' is not declared. Run `gig config category {name} <pattern>` to declare it."
+    )
 }
 
 /// What, if anything, is already at a computed destination path - drives
@@ -140,15 +165,13 @@ fn run_config_category(args: CategoryArgs) -> anyhow::Result<()> {
         ),
         (Some(pattern), false) => category_config::set(&name, &pattern),
         (None, true) => category_config::set(&name, ""),
-        (None, false) => match category_config::get(&name)? {
-            Some(pattern) => {
+        (None, false) => category_config::get(&name)?.map_or_else(
+            || Err(category_not_declared_error(&name)),
+            |pattern| {
                 println!("{pattern}");
                 Ok(())
-            }
-            None => anyhow::bail!(
-                "category '{name}' is not declared. Run `gig config category {name} <pattern>` to declare it."
-            ),
-        },
+            },
+        ),
     }
 }
 
