@@ -42,6 +42,9 @@ fn get_with_pull_and_category_flags_parses() {
         .stub_git
         .seed_config("gig.root-dir", root_dir.to_str().unwrap());
     harness
+        .stub_git
+        .seed_config("gig.category.personal.pattern", "");
+    harness
         .cmd()
         .args([
             "git@github.com:owner/repo.git",
