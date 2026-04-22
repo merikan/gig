@@ -44,8 +44,18 @@ fn normalize_args(mut args: Vec<String>) -> Vec<String> {
 fn run_get(args: &GetArgs) -> anyhow::Result<()> {
     let root_dir = root_dir()?;
     let parsed = url_parser::parse(&args.url)?;
-    let destination_root = resolve_destination_root(&root_dir, &parsed, args.category.as_deref())?;
-    let destination = destination::destination_path(&destination_root, &parsed);
+    let categories = category_config::list()?;
+
+    // Resolved (and validated) unconditionally, even when the existing-clone
+    // search below ends up overriding it: every declared category's pattern
+    // must compile, and an explicit `--category` must reference an
+    // already-declared category, on every invocation - not just the ones
+    // that actually need a freshly resolved destination.
+    let destination_root =
+        resolve_destination_root(&root_dir, &parsed, args.category.as_deref(), &categories)?;
+
+    let destination = find_existing_clone(&root_dir, &parsed, &categories)
+        .unwrap_or_else(|| destination::destination_path(&destination_root, &parsed));
 
     match existing_clone_state(&destination) {
         // No gig message here by design: git's own pull output (diffstat,
@@ -83,9 +93,9 @@ fn resolve_destination_root(
     root_dir: &Path,
     parsed: &url_parser::ParsedUrl,
     category_override: Option<&str>,
+    categories: &[category_config::Category],
 ) -> anyhow::Result<PathBuf> {
-    let categories = category_config::list()?;
-    let matched = category_routing::resolve(&categories, &parsed.normalized_path())?;
+    let matched = category_routing::resolve(categories, &parsed.normalized_path())?;
 
     let category = match category_override {
         Some(name) => {
@@ -97,6 +107,44 @@ fn resolve_destination_root(
         None => matched,
     };
     Ok(category.map_or_else(|| root_dir.to_path_buf(), |name| root_dir.join(name)))
+}
+
+/// Every location `get` recognizes as a possible existing clone for this
+/// URL: the default `root_dir/host/owner/repo` path, plus
+/// `root_dir/<category>/host/owner/repo` for every declared category -
+/// regardless of whether that category's pattern currently matches this URL,
+/// or would even be reachable via `--category`/regex resolution. Declared
+/// categories are included unconditionally (even flag-only ones) because a
+/// repo may have been cloned there in the past under a rule that has since
+/// changed.
+fn candidate_destinations(
+    root_dir: &Path,
+    parsed: &url_parser::ParsedUrl,
+    categories: &[category_config::Category],
+) -> Vec<PathBuf> {
+    let mut candidates = vec![destination::destination_path(root_dir, parsed)];
+    candidates.extend(
+        categories
+            .iter()
+            .map(|category| destination::destination_path(&root_dir.join(&category.name), parsed)),
+    );
+    candidates
+}
+
+/// Searches every candidate destination (default path first, then declared
+/// categories in declaration order) for one that's already cloned. This is
+/// what makes category rule changes non-destructive: a repo cloned before a
+/// category existed, or after one was added/removed/reordered, is still
+/// found at wherever it actually lives, rather than being duplicated under
+/// whatever path current `--category`/regex resolution would otherwise pick.
+fn find_existing_clone(
+    root_dir: &Path,
+    parsed: &url_parser::ParsedUrl,
+    categories: &[category_config::Category],
+) -> Option<PathBuf> {
+    candidate_destinations(root_dir, parsed, categories)
+        .into_iter()
+        .find(|candidate| has_git_dir(candidate))
 }
 
 /// The shared "you must declare a category before using it" error, raised
@@ -123,11 +171,17 @@ enum DestinationState {
 fn existing_clone_state(destination: &Path) -> DestinationState {
     if !destination.exists() {
         DestinationState::Free
-    } else if destination.join(".git").is_dir() {
+    } else if has_git_dir(destination) {
         DestinationState::AlreadyCloned
     } else {
         DestinationState::Occupied
     }
+}
+
+/// Whether `path` contains a `.git` subdirectory - the sole signal `gig`
+/// uses to recognize an existing clone.
+fn has_git_dir(path: &Path) -> bool {
+    path.join(".git").is_dir()
 }
 
 fn run_config(command: ConfigCommand) -> anyhow::Result<()> {
