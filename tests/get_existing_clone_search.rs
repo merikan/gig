@@ -3,6 +3,7 @@
 mod common;
 
 use common::GigTest;
+use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 use std::fs;
 
@@ -48,6 +49,64 @@ fn a_repo_cloned_at_the_default_path_before_a_matching_category_existed_is_found
         harness.stub_git.calls_starting_with("-C\t"),
         vec![format!("-C\t{}\tpull", default_destination.display())]
     );
+}
+
+#[test]
+fn already_cloned_notes_where_category_rules_would_place_a_fresh_clone_when_it_differs() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+    let url = "git@github.com:merikan/gig.git";
+
+    // Cloned before any category rule existed - lands at the default path.
+    harness.cmd().args(["get", url]).assert().success();
+    let default_destination = root_dir.join("github.com/merikan/gig");
+
+    // A category rule declared after the fact would now route this URL
+    // elsewhere - the existing clone is still found and used, but the user
+    // is told where current rules would have placed a fresh clone.
+    harness
+        .stub_git
+        .seed_config("gig.category.personal.pattern", r"^github\.com/merikan/");
+    let category_destination = root_dir.join("personal/github.com/merikan/gig");
+
+    harness
+        .cmd()
+        .args(["get", url])
+        .assert()
+        .success()
+        .stdout(contains(format!(
+            "Already cloned at {}",
+            default_destination.display()
+        )))
+        .stdout(contains(format!(
+            "Note: current category rules would clone this to {} instead",
+            category_destination.display()
+        )));
+}
+
+#[test]
+fn already_cloned_prints_no_note_when_it_already_lives_where_category_rules_would_place_it() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+    harness
+        .stub_git
+        .seed_config("gig.category.personal.pattern", r"^github\.com/merikan/");
+    let url = "git@github.com:merikan/gig.git";
+
+    // Cloned with the category rule already in place - lands under "personal".
+    harness.cmd().args(["get", url]).assert().success();
+    let destination = root_dir.join("personal/github.com/merikan/gig");
+
+    harness
+        .cmd()
+        .args(["get", url])
+        .assert()
+        .success()
+        .stdout(contains(format!(
+            "Already cloned at {}",
+            destination.display()
+        )))
+        .stdout(predicates::str::contains("Note:").not());
 }
 
 #[test]

@@ -63,6 +63,7 @@ fn run_get(args: &GetArgs) -> anyhow::Result<()> {
         DestinationState::AlreadyCloned if args.pull => git_ops::pull(&destination),
         DestinationState::AlreadyCloned => {
             println!("Already cloned at {}", destination.display());
+            note_if_category_resolution_differs(&destination, &destination_root, &parsed);
             Ok(())
         }
         DestinationState::Occupied => anyhow::bail!(
@@ -145,6 +146,25 @@ fn find_existing_clone(
     candidate_destinations(root_dir, parsed, categories)
         .into_iter()
         .find(|candidate| has_git_dir(candidate))
+}
+
+/// Informational note printed alongside "Already cloned at ..." when the
+/// clone that was actually found lives somewhere other than where current
+/// `--category`/regex resolution would place a fresh clone - e.g. a category
+/// rule was declared or changed after the repo was already cloned elsewhere.
+/// Purely advisory: the existing clone is still what `get`/`--pull` act on.
+fn note_if_category_resolution_differs(
+    destination: &Path,
+    destination_root: &Path,
+    parsed: &url_parser::ParsedUrl,
+) {
+    let resolved = destination::destination_path(destination_root, parsed);
+    if resolved != destination {
+        println!(
+            "Note: current category rules would clone this to {} instead",
+            resolved.display()
+        );
+    }
 }
 
 /// The shared "you must declare a category before using it" error, raised
