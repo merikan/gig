@@ -102,8 +102,10 @@ fn write_store(entries: &[(String, String)]) {
     let _ = fs::write(path, contents);
 }
 
-/// Handles the three `git config` forms gig uses today: `--get <key>`,
-/// `--global <key> <value>`, and `--get-regexp <pattern>`.
+/// Handles the `git config` forms gig uses today: `--get <key>`,
+/// `--get-all <key>`, `--global <key> <value>`, `--add --global <key>
+/// <value>`, `--replace-all --global <key> <value>`, and `--get-regexp
+/// <pattern>`.
 fn handle_config(args: &[String]) -> ExitCode {
     match args {
         [flag, key] if flag == "--get" => {
@@ -116,6 +118,7 @@ fn handle_config(args: &[String]) -> ExitCode {
                 None => ExitCode::FAILURE,
             }
         }
+        [flag, key] if flag == "--get-all" => handle_get_all(key),
         [flag, key, value] if flag == "--global" => {
             let mut store = read_store();
             match store.iter_mut().find(|(k, _)| k == key) {
@@ -125,9 +128,62 @@ fn handle_config(args: &[String]) -> ExitCode {
             write_store(&store);
             ExitCode::SUCCESS
         }
+        [flag1, flag2, key, value] if flag1 == "--add" && flag2 == "--global" => {
+            handle_add(key, value)
+        }
+        [flag1, flag2, key, value] if flag1 == "--replace-all" && flag2 == "--global" => {
+            handle_replace_all(key, value)
+        }
         [flag, pattern] if flag == "--get-regexp" => handle_get_regexp(pattern),
         _ => ExitCode::FAILURE,
     }
+}
+
+/// `git config --get-all <key>` - every value of `key`, one per line, in
+/// store (declaration/add) order. Fails closed (exit 1, no output) when
+/// `key` has no values at all, matching real git's "no such key" signal.
+fn handle_get_all(key: &str) -> ExitCode {
+    let store = read_store();
+    let matches: Vec<_> = store.iter().filter(|(k, _)| k == key).collect();
+    if matches.is_empty() {
+        return ExitCode::FAILURE;
+    }
+    for (_, value) in matches {
+        println!("{value}");
+    }
+    ExitCode::SUCCESS
+}
+
+/// `git config --add --global <key> <value>` - appends a new entry for
+/// `key`, grouped immediately after its last existing entry (or at the end
+/// of the store if `key` has none yet), mirroring how real git keeps all of
+/// a key's values together at its first-declared position.
+fn handle_add(key: &str, value: &str) -> ExitCode {
+    let mut store = read_store();
+    let insert_at = store
+        .iter()
+        .rposition(|(k, _)| k == key)
+        .map_or(store.len(), |last| last.saturating_add(1));
+    store.insert(insert_at, (key.to_string(), value.to_string()));
+    write_store(&store);
+    ExitCode::SUCCESS
+}
+
+/// `git config --replace-all --global <key> <value>` - drops every existing
+/// entry for `key` and writes a single new one in their place, at the
+/// position of `key`'s first prior entry (or at the end if it had none) -
+/// mirroring real git, which never moves a key to a different position in
+/// the file just because its value(s) were replaced.
+fn handle_replace_all(key: &str, value: &str) -> ExitCode {
+    let mut store = read_store();
+    let insert_at = store.iter().position(|(k, _)| k == key);
+    store.retain(|(k, _)| k != key);
+    store.insert(
+        insert_at.unwrap_or(store.len()),
+        (key.to_string(), value.to_string()),
+    );
+    write_store(&store);
+    ExitCode::SUCCESS
 }
 
 /// `git config --get-regexp <pattern>`. gig only ever asks for the one fixed

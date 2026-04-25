@@ -53,17 +53,58 @@ fn parse_entry_line(line: &str) -> Result<Category> {
     })
 }
 
-/// The current pattern for a declared category, or `None` if `name` was
-/// never declared.
-pub fn get(name: &str) -> Result<Option<String>> {
-    git_config::get(&key(name))
+/// Every pattern currently declared for `name`, in declaration/add order.
+/// An empty vec means `name` isn't declared at all - a flag-only category
+/// still yields one entry (a single empty string), matching how it's stored.
+pub fn patterns(name: &str) -> Result<Vec<String>> {
+    git_config::get_all(&key(name))
 }
 
-/// Declares (or updates) a category with the given pattern. An empty
-/// `pattern` declares a flag-only category - usable via `--category`, never
-/// auto-matched.
-pub fn set(name: &str, pattern: &str) -> Result<()> {
-    git_config::set_global(&key(name), pattern)
+/// Declares/replaces `name`'s entire pattern list with `patterns` (must be
+/// non-empty - a flag-only declaration is represented by `[""]`). `existing`
+/// is `name`'s pattern list *before* this call, as already read by the
+/// caller (e.g. to decide whether to print the destructive-replace warning) -
+/// passed in rather than re-read here to avoid a redundant `git config`
+/// invocation.
+///
+/// Plain `git config --global` can only ever hold one value, and errors if
+/// the key it's asked to overwrite already holds more than one - so once
+/// either the previous or the new list has more than one entry, this falls
+/// back to `--replace-all` (clear every existing value, write the first new
+/// one) followed by `--add` for the rest. The plain single-value set is used
+/// whenever that's safe, preserving the exact invocation single-pattern
+/// categories have always used.
+pub fn replace(name: &str, existing: &[String], patterns: &[String]) -> Result<()> {
+    let key = key(name);
+    match (existing.len() <= 1, patterns) {
+        (true, [only]) => git_config::set_global(&key, only),
+        (_, [first, rest @ ..]) => {
+            git_config::replace_all_global(&key, first)?;
+            for pattern in rest {
+                git_config::add_global(&key, pattern)?;
+            }
+            Ok(())
+        }
+        (_, []) => bail!("replace requires at least one pattern"),
+    }
+}
+
+/// Appends `patterns` to `name`'s existing list (`existing`, as already read
+/// by the caller - see [`replace`] for why it's passed in rather than
+/// re-read). Skips any pattern already present verbatim, so re-running the
+/// same `add` twice doesn't grow the list. Assumes the caller has already
+/// verified `name` is declared (`existing` non-empty) - `add` never creates a
+/// category.
+pub fn add(name: &str, existing: &[String], patterns: &[String]) -> Result<()> {
+    let key = key(name);
+    let mut current = existing.to_vec();
+    for pattern in patterns {
+        if !current.contains(pattern) {
+            git_config::add_global(&key, pattern)?;
+            current.push(pattern.clone());
+        }
+    }
+    Ok(())
 }
 
 fn key(name: &str) -> String {
