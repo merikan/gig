@@ -106,6 +106,99 @@ fn an_invalid_regex_in_a_declared_category_aborts_up_front_naming_it() {
 }
 
 #[test]
+fn a_category_declared_with_two_patterns_auto_matches_a_url_matching_either_one() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+    harness
+        .stub_git
+        .seed_config("gig.category.oss.pattern", r"^github\.com/rust-lang/");
+    harness
+        .stub_git
+        .seed_config_add("gig.category.oss.pattern", r"^github\.com/tokio-rs/");
+
+    harness
+        .cmd()
+        .args(["get", "git@github.com:rust-lang/regex.git"])
+        .assert()
+        .success();
+    harness
+        .cmd()
+        .args(["get", "git@github.com:tokio-rs/tokio.git"])
+        .assert()
+        .success();
+
+    assert!(
+        root_dir
+            .join("oss/github.com/rust-lang/regex/.git")
+            .is_dir()
+    );
+    assert!(root_dir.join("oss/github.com/tokio-rs/tokio/.git").is_dir());
+}
+
+#[test]
+fn a_pattern_appended_via_config_category_add_routes_alongside_the_original() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+    harness
+        .stub_git
+        .seed_config("gig.category.oss.pattern", r"^github\.com/rust-lang/");
+
+    harness
+        .cmd()
+        .args([
+            "config",
+            "category",
+            "oss",
+            r"^github\.com/tokio-rs/",
+            "--add",
+        ])
+        .assert()
+        .success();
+
+    harness
+        .cmd()
+        .args(["get", "git@github.com:rust-lang/regex.git"])
+        .assert()
+        .success();
+    harness
+        .cmd()
+        .args(["get", "git@github.com:tokio-rs/tokio.git"])
+        .assert()
+        .success();
+
+    assert!(
+        root_dir
+            .join("oss/github.com/rust-lang/regex/.git")
+            .is_dir()
+    );
+    assert!(root_dir.join("oss/github.com/tokio-rs/tokio/.git").is_dir());
+}
+
+#[test]
+fn an_invalid_regex_among_several_patterns_in_a_category_still_aborts_up_front_naming_it() {
+    let harness = GigTest::new();
+    harness.seed_root_dir();
+    harness
+        .stub_git
+        .seed_config("gig.category.mixed.pattern", r"^github\.com/merikan/");
+    // Second pattern is invalid - it must still be caught even though the
+    // first pattern already compiles fine.
+    harness
+        .stub_git
+        .seed_config_add("gig.category.mixed.pattern", "(");
+    let url = "git@github.com:merikan/gig.git";
+
+    harness
+        .cmd()
+        .args(["get", url])
+        .assert()
+        .failure()
+        .stderr(contains("mixed"));
+
+    assert!(harness.stub_git.calls_starting_with("clone\t").is_empty());
+}
+
+#[test]
 fn after_a_category_placed_clone_list_shows_it_with_the_category_as_a_prefix() {
     let harness = GigTest::new();
     harness.seed_root_dir();

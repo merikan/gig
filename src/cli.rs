@@ -42,15 +42,23 @@ pub enum ConfigCommand {
     Category(CategoryArgs),
 }
 
-/// The four forms `config category` accepts, dispatched by which fields are
+/// The five forms `config category` accepts, dispatched by which fields are
 /// present:
-/// - neither `name` nor `pattern` nor `flag_only`: list every declared
-///   category (`<name>\t<pattern>`, one per line, declaration order).
-/// - `name` only: print that category's pattern (error if undeclared).
-/// - `name` + `pattern`: declare/update that category with the given pattern.
-/// - `name` + `--flag-only`: declare that category with an empty pattern.
+/// - neither `name` nor `patterns` nor `flag_only` nor `add`: list every
+///   declared category (`<name>\t<pattern>`, one per line per pattern,
+///   declaration order).
+/// - `name` only: print that category's patterns, one per line (error if
+///   undeclared).
+/// - `name` + `patterns`: declare `name` if new, otherwise **replace** its
+///   entire pattern list with the given pattern(s).
+/// - `name` + `patterns` + `--add`: **append** the given pattern(s) to
+///   `name`'s existing list (errors if `name` isn't already declared;
+///   an exact-duplicate pattern is a silent no-op).
+/// - `name` + `--flag-only`: replace that category's pattern list with an
+///   empty one.
 ///
-/// `pattern` and `flag_only` are mutually exclusive.
+/// `patterns` and `--flag-only` are mutually exclusive, as are `--add` and
+/// `--flag-only`.
 #[derive(Debug, Args)]
 #[command(after_help = "\
 Pattern examples (RE2 syntax, matched against the `host/owner/repo` path a repo would be cloned to - not the URL):
@@ -62,11 +70,19 @@ Pattern examples (RE2 syntax, matched against the `host/owner/repo` path a repo 
       Every repo on a self-hosted GitLab instance, regardless of owner/subgroup.
 
   gig config category oss '^github\\.com/(rust-lang|tokio-rs)/'
-      Every repo under either of two specific owners on github.com.")]
+      Every repo under either of two specific owners on github.com.
+
+  gig config category oss '^github\\.com/other-owner/one-off-repo$' --add
+      Route one more one-off repo into the existing `oss` category, without
+      folding it into the pattern above.")]
 pub struct CategoryArgs {
     pub name: Option<String>,
-    pub pattern: Option<String>,
-    /// Declare the category with no pattern, usable only via `--category`
+    pub patterns: Vec<String>,
+    /// Declare the category with no patterns, usable only via `--category`
     #[arg(long = "flag-only")]
     pub flag_only: bool,
+    /// Append the given pattern(s) to the category's existing list instead
+    /// of replacing it; errors if the category isn't already declared
+    #[arg(long = "add")]
+    pub add: bool,
 }

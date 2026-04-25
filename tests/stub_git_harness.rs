@@ -113,6 +113,165 @@ fn path_lookup_resolves_to_stub_git() {
 }
 
 #[test]
+fn get_all_returns_every_value_of_a_multi_valued_key_in_add_order() {
+    let temp = tempfile::tempdir().unwrap();
+    let stub = StubGit::install(temp.path());
+    stub.command()
+        .args([
+            "config",
+            "--add",
+            "--global",
+            "gig.category.oss.pattern",
+            "a",
+        ])
+        .status()
+        .expect("seed first value");
+    stub.command()
+        .args([
+            "config",
+            "--add",
+            "--global",
+            "gig.category.oss.pattern",
+            "b",
+        ])
+        .status()
+        .expect("seed second value");
+
+    let output = stub
+        .command()
+        .args(["config", "--get-all", "gig.category.oss.pattern"])
+        .output()
+        .expect("run stub git get-all");
+
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "a\nb\n");
+}
+
+#[test]
+fn get_all_on_an_unset_key_fails() {
+    let temp = tempfile::tempdir().unwrap();
+    let stub = StubGit::install(temp.path());
+
+    let status = stub
+        .command()
+        .args(["config", "--get-all", "gig.category.ghost.pattern"])
+        .status()
+        .expect("run stub git get-all");
+
+    assert!(!status.success());
+}
+
+#[test]
+fn add_global_appends_without_disturbing_other_keys_declared_in_between() {
+    let temp = tempfile::tempdir().unwrap();
+    let stub = StubGit::install(temp.path());
+    stub.command()
+        .args([
+            "config",
+            "--add",
+            "--global",
+            "gig.category.a.pattern",
+            "p1",
+        ])
+        .status()
+        .expect("seed a p1");
+    stub.command()
+        .args([
+            "config",
+            "--add",
+            "--global",
+            "gig.category.b.pattern",
+            "q1",
+        ])
+        .status()
+        .expect("seed b q1");
+
+    let status = stub
+        .command()
+        .args([
+            "config",
+            "--add",
+            "--global",
+            "gig.category.a.pattern",
+            "p2",
+        ])
+        .status()
+        .expect("add a p2");
+
+    assert!(status.success());
+    let output = stub
+        .command()
+        .args(["config", "--get-regexp", r"^gig\.category\..*\.pattern$"])
+        .output()
+        .expect("enumerate");
+    // "a"'s two values stay grouped together, ahead of "b" - matching real
+    // git's behavior of keeping a key's values at its first-declared position.
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "gig.category.a.pattern p1\ngig.category.a.pattern p2\ngig.category.b.pattern q1\n"
+    );
+}
+
+#[test]
+fn replace_all_global_clears_prior_values_and_keeps_the_keys_original_position() {
+    let temp = tempfile::tempdir().unwrap();
+    let stub = StubGit::install(temp.path());
+    stub.command()
+        .args([
+            "config",
+            "--add",
+            "--global",
+            "gig.category.a.pattern",
+            "p1",
+        ])
+        .status()
+        .expect("seed a p1");
+    stub.command()
+        .args([
+            "config",
+            "--add",
+            "--global",
+            "gig.category.b.pattern",
+            "q1",
+        ])
+        .status()
+        .expect("seed b q1");
+    stub.command()
+        .args([
+            "config",
+            "--add",
+            "--global",
+            "gig.category.a.pattern",
+            "p2",
+        ])
+        .status()
+        .expect("seed a p2");
+
+    let status = stub
+        .command()
+        .args([
+            "config",
+            "--replace-all",
+            "--global",
+            "gig.category.a.pattern",
+            "p3",
+        ])
+        .status()
+        .expect("replace-all a");
+
+    assert!(status.success());
+    let output = stub
+        .command()
+        .args(["config", "--get-regexp", r"^gig\.category\..*\.pattern$"])
+        .output()
+        .expect("enumerate");
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "gig.category.a.pattern p3\ngig.category.b.pattern q1\n"
+    );
+}
+
+#[test]
 fn configurable_exit_code_and_output() {
     let temp = tempfile::tempdir().unwrap();
     let stub = StubGit::install(temp.path());

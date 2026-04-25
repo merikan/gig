@@ -39,3 +39,57 @@ pub fn set_global(key: &str, value: &str) -> Result<()> {
         );
     }
 }
+
+/// `git config --get-all <key>` - every value of a (possibly multi-valued)
+/// key, in declaration/add order. An empty vec means the key is unset -
+/// that's how `--get-all` itself reports "no such key", via exit code 1.
+pub fn get_all(key: &str) -> Result<Vec<String>> {
+    let output = run(&["config", "--get-all", key])?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(str::to_string)
+            .collect())
+    } else if output.status.code() == Some(1) {
+        Ok(Vec::new())
+    } else {
+        bail!(
+            "git config --get-all {key} failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+}
+
+/// `git config --add --global <key> <value>` - appends a new value to a
+/// (possibly already multi-valued) key without touching its existing values.
+pub fn add_global(key: &str, value: &str) -> Result<()> {
+    let output = run(&["config", "--add", "--global", key, value])?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        bail!(
+            "git config --add --global {key} {value} failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+}
+
+/// `git config --replace-all --global <key> <value>` - clears every existing
+/// value of `key` and writes `value` as its sole remaining one. Used instead
+/// of plain [`set_global`] whenever a key might already hold (or is about to
+/// be given) more than one value - `git config --global` itself refuses to
+/// overwrite a multi-valued key with a single value.
+pub fn replace_all_global(key: &str, value: &str) -> Result<()> {
+    let output = run(&["config", "--replace-all", "--global", key, value])?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        bail!(
+            "git config --replace-all --global {key} {value} failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+}

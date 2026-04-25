@@ -79,6 +79,19 @@ impl StubGit {
             .expect("seed stub git config");
         assert!(status.success(), "failed to seed stub git config");
     }
+
+    /// Appends another value to a (possibly already-seeded) key directly in
+    /// the stub's store, bypassing gig - for seeding a multi-valued key (e.g.
+    /// a category declared with more than one pattern) before the invocation
+    /// under test runs.
+    pub fn seed_config_add(&self, key: &str, value: &str) {
+        let status = self
+            .command()
+            .args(["config", "--add", "--global", key, value])
+            .status()
+            .expect("seed stub git config (add)");
+        assert!(status.success(), "failed to seed stub git config (add)");
+    }
 }
 
 #[cfg(unix)]

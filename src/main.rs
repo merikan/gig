@@ -218,35 +218,90 @@ fn run_config(command: ConfigCommand) -> anyhow::Result<()> {
     }
 }
 
-/// `config category [<name>] [<pattern>] [--flag-only]` - see the
-/// `CategoryArgs` doc comment in `cli.rs` for the full set of forms.
+/// `config category [<name>] [<pattern> ...] [--add] [--flag-only]` - see
+/// the `CategoryArgs` doc comment in `cli.rs` for the full set of forms.
 fn run_config_category(args: CategoryArgs) -> anyhow::Result<()> {
     let CategoryArgs {
         name,
-        pattern,
+        patterns,
         flag_only,
+        add,
     } = args;
     let Some(name) = name else {
-        if flag_only || pattern.is_some() {
-            anyhow::bail!("--flag-only and <pattern> require a category <name>");
+        if flag_only || add || !patterns.is_empty() {
+            anyhow::bail!("--add, --flag-only, and <pattern> require a category <name>");
         }
         return run_config_category_list();
     };
 
-    match (pattern, flag_only) {
-        (Some(_), true) => anyhow::bail!(
-            "<pattern> and --flag-only are mutually exclusive - `config category {name}` was given both"
-        ),
-        (Some(pattern), false) => category_config::set(&name, &pattern),
-        (None, true) => category_config::set(&name, ""),
-        (None, false) => category_config::get(&name)?.map_or_else(
-            || Err(category_not_declared_error(&name)),
-            |pattern| {
-                println!("{pattern}");
-                Ok(())
-            },
-        ),
+    if add && flag_only {
+        anyhow::bail!(
+            "--add and --flag-only are mutually exclusive - `config category {name}` was given both"
+        );
     }
+    if flag_only && !patterns.is_empty() {
+        anyhow::bail!(
+            "<pattern> and --flag-only are mutually exclusive - `config category {name}` was given both"
+        );
+    }
+    if add && patterns.is_empty() {
+        anyhow::bail!("at least one pattern is required with --add");
+    }
+
+    if add {
+        run_config_category_add(&name, &patterns)
+    } else if flag_only {
+        run_config_category_replace(&name, &[String::new()])
+    } else if !patterns.is_empty() {
+        run_config_category_replace(&name, &patterns)
+    } else {
+        run_config_category_view(&name)
+    }
+}
+
+/// `config category <name> <pattern> ... --add`: appends `patterns` to an
+/// already-declared category's list, skipping exact duplicates. Errors,
+/// without writing anything, if `name` isn't already declared - `--add`
+/// never creates a category.
+fn run_config_category_add(name: &str, patterns: &[String]) -> anyhow::Result<()> {
+    let existing = category_config::patterns(name)?;
+    if existing.is_empty() {
+        return Err(category_not_declared_error(name));
+    }
+    category_config::add(name, &existing, patterns)
+}
+
+/// `config category <name> <pattern> ...` / `--flag-only`: replaces `name`'s
+/// entire pattern list with `patterns` (a single empty string for
+/// `--flag-only`). Warns on stderr when the replace drops at least one
+/// previously-declared, non-empty pattern - never for a brand-new category
+/// or one that was previously flag-only (i.e. had no *real* pattern to
+/// drop).
+fn run_config_category_replace(name: &str, patterns: &[String]) -> anyhow::Result<()> {
+    let existing = category_config::patterns(name)?;
+    if existing
+        .iter()
+        .any(|pattern| !pattern.is_empty() && !patterns.contains(pattern))
+    {
+        eprintln!(
+            "warning: `config category {name}` replaced its pattern list, dropping previously declared pattern(s)"
+        );
+    }
+    category_config::replace(name, &existing, patterns)
+}
+
+/// `config category <name>` (view): every pattern currently declared for
+/// `name`, one per line, in declaration/add order. Errors if `name` isn't
+/// declared.
+fn run_config_category_view(name: &str) -> anyhow::Result<()> {
+    let patterns = category_config::patterns(name)?;
+    if patterns.is_empty() {
+        return Err(category_not_declared_error(name));
+    }
+    for pattern in patterns {
+        println!("{pattern}");
+    }
+    Ok(())
 }
 
 /// `config category` with no name: every declared category, one per line,
