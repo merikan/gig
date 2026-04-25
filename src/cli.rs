@@ -9,6 +9,11 @@ use clap::{Args, Parser, Subcommand};
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
+
+    /// Print diagnostic detail (git commands run, category routing,
+    /// destination resolution) to stderr
+    #[arg(long, global = true)]
+    pub debug: bool,
 }
 
 #[derive(Debug, Subcommand)]

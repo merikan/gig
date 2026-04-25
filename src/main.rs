@@ -1,6 +1,7 @@
 mod category_config;
 mod category_routing;
 mod cli;
+mod debug_log;
 mod destination;
 mod git_cmd;
 mod git_config;
@@ -18,6 +19,7 @@ const ROOT_DIR_UNSET_MESSAGE: &str =
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse_from(normalize_args(std::env::args().collect()));
+    debug_log::init(cli.debug);
 
     match cli.command {
         Commands::Get(args) => run_get(&args),
@@ -27,16 +29,28 @@ fn main() -> anyhow::Result<()> {
 }
 
 /// `get` is the default subcommand, so `gig <url>` must parse the same as
-/// `gig get <url>` even though clap has no built-in notion of a default subcommand.
+/// `gig get <url>` even though clap has no built-in notion of a default
+/// subcommand. Leading global flags (currently just `--debug`, which is valid
+/// anywhere via `global = true`) are skipped over first, so `gig --debug <url>`
+/// and `gig --debug config ...` both still resolve correctly rather than
+/// having `--debug` mistaken for the URL/subcommand itself.
 fn normalize_args(mut args: Vec<String>) -> Vec<String> {
     const KNOWN_SUBCOMMANDS: &[&str] = &["get", "config", "list", "ls", "help"];
     const HELP_FLAGS: &[&str] = &["-h", "--help", "-V", "--version"];
+    const GLOBAL_FLAGS: &[&str] = &["--debug"];
 
-    if let Some(first) = args.get(1)
-        && !KNOWN_SUBCOMMANDS.contains(&first.as_str())
-        && !HELP_FLAGS.contains(&first.as_str())
-    {
-        args.insert(1, "get".to_string());
+    let insert_at = args
+        .iter()
+        .enumerate()
+        .skip(1)
+        .find(|(_, arg)| !GLOBAL_FLAGS.contains(&arg.as_str()))
+        .filter(|(_, arg)| {
+            !KNOWN_SUBCOMMANDS.contains(&arg.as_str()) && !HELP_FLAGS.contains(&arg.as_str())
+        })
+        .map(|(index, _)| index);
+
+    if let Some(index) = insert_at {
+        args.insert(index, "get".to_string());
     }
     args
 }
@@ -57,7 +71,13 @@ fn run_get(args: &GetArgs) -> anyhow::Result<()> {
     let destination = find_existing_clone(&root_dir, &parsed, &categories)
         .unwrap_or_else(|| destination::destination_path(&destination_root, &parsed));
 
-    match existing_clone_state(&destination) {
+    let state = existing_clone_state(&destination);
+    debug_log::log(format!(
+        "destination {} classified as {state}",
+        destination.display()
+    ));
+
+    match state {
         // No gig message here by design: git's own pull output (diffstat,
         // "Already up to date.", ...) is what the user should see instead.
         DestinationState::AlreadyCloned if args.pull => git_ops::pull(&destination),
@@ -97,12 +117,21 @@ fn resolve_destination_root(
     categories: &[category_config::Category],
 ) -> anyhow::Result<PathBuf> {
     let matched = category_routing::resolve(categories, &parsed.normalized_path())?;
+    debug_log::log(format!(
+        "category routing: '{}' against {} declared categories -> {}",
+        parsed.normalized_path(),
+        categories.len(),
+        matched.as_deref().unwrap_or("no match")
+    ));
 
     let category = match category_override {
         Some(name) => {
             if !categories.iter().any(|c| c.name == name) {
                 return Err(category_not_declared_error(name));
             }
+            debug_log::log(format!(
+                "--category {name} overrides automatic category matching"
+            ));
             Some(name.to_string())
         }
         None => matched,
@@ -143,9 +172,25 @@ fn find_existing_clone(
     parsed: &url_parser::ParsedUrl,
     categories: &[category_config::Category],
 ) -> Option<PathBuf> {
-    candidate_destinations(root_dir, parsed, categories)
-        .into_iter()
-        .find(|candidate| has_git_dir(candidate))
+    let candidates = candidate_destinations(root_dir, parsed, categories);
+    let candidate_count = candidates.len();
+    for candidate in candidates {
+        if has_git_dir(&candidate) {
+            debug_log::log(format!(
+                "candidate destination {}: already cloned",
+                candidate.display()
+            ));
+            return Some(candidate);
+        }
+        debug_log::log(format!(
+            "candidate destination {}: not found",
+            candidate.display()
+        ));
+    }
+    debug_log::log(format!(
+        "no existing clone found among {candidate_count} candidate destination(s)"
+    ));
+    None
 }
 
 /// Informational note printed alongside "Already cloned at ..." when the
@@ -183,6 +228,16 @@ enum DestinationState {
     Free,
     AlreadyCloned,
     Occupied,
+}
+
+impl std::fmt::Display for DestinationState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Free => "free",
+            Self::AlreadyCloned => "already-cloned",
+            Self::Occupied => "occupied",
+        })
+    }
 }
 
 /// A destination is "already cloned" only if it contains a `.git`
