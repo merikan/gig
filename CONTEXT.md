@@ -13,3 +13,6 @@ A destination that already contains a `.git` subdirectory. `get` treats this as 
 **Occupied destination**:
 A destination that already exists on disk but is *not* already-cloned (no `.git` subdirectory) - a stray file, an empty directory, or unrelated contents. `get` refuses to clone into it and errors out rather than touching it.
 _Avoid_: "existing destination" (ambiguous - both already-cloned and occupied destinations "exist"; use the specific term for which case is meant).
+
+**Candidate destination**:
+A destination path considered during the non-destructive existing-clone search - `get` probes the default destination and every declared category's destination for a URL, without touching disk, before settling on the one destination it will act on. Distinct from Destination: a URL has exactly one destination but may have several candidate destinations.
