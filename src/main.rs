@@ -369,7 +369,9 @@ fn run_config_category_list() -> anyhow::Result<()> {
 }
 
 fn run_list() -> anyhow::Result<()> {
-    for repo in repo_walk::find_repos(&root_dir()?)? {
+    let root_dir = root_dir()?;
+    debug_log::log(format!("listing repos under {}", root_dir.display()));
+    for repo in repo_walk::find_repos(&root_dir)? {
         println!("{}", repo.display());
     }
     Ok(())

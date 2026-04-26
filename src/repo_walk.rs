@@ -3,6 +3,7 @@
 //! relative to `root-dir`, sorted. The filesystem is the only I/O boundary
 //! here - unlike every other module in this crate, `list` never shells out to
 //! `git`.
+use crate::debug_log;
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -26,6 +27,7 @@ fn walk(root_dir: &Path, dir: &Path, repos: &mut Vec<PathBuf>) -> Result<()> {
         let relative = dir
             .strip_prefix(root_dir)
             .with_context(|| format!("{} is not under {}", dir.display(), root_dir.display()))?;
+        debug_log::log(format!("found repo: {}", relative.display()));
         repos.push(relative.to_path_buf());
         return Ok(());
     }
