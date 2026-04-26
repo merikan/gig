@@ -158,3 +158,53 @@ fn debug_does_not_change_stdout_output() {
                 .and(contains(format!("Cloned into {}", destination.display()))),
         );
 }
+
+#[test]
+fn debug_on_list_reveals_the_root_dir_scanned_and_each_repo_found() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+    std::fs::create_dir_all(root_dir.join("github.com/owner/repo/.git")).unwrap();
+
+    harness
+        .cmd()
+        .args(["list", "--debug"])
+        .assert()
+        .success()
+        .stderr(
+            contains(format!(
+                "[debug] listing repos under {}",
+                root_dir.display()
+            ))
+            .and(contains("[debug] found repo: github.com/owner/repo")),
+        );
+}
+
+#[test]
+fn debug_on_ls_alias_also_reveals_the_root_dir_scanned() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+
+    harness
+        .cmd()
+        .args(["ls", "--debug"])
+        .assert()
+        .success()
+        .stderr(contains(format!(
+            "[debug] listing repos under {}",
+            root_dir.display()
+        )));
+}
+
+#[test]
+fn without_debug_list_prints_no_diagnostic_lines() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+    std::fs::create_dir_all(root_dir.join("github.com/owner/repo/.git")).unwrap();
+
+    harness
+        .cmd()
+        .arg("list")
+        .assert()
+        .success()
+        .stderr(contains("[debug]").not());
+}
