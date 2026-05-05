@@ -381,6 +381,30 @@ fn run_list() -> anyhow::Result<()> {
 /// precondition every `get`/`list` invocation shares.
 fn root_dir() -> anyhow::Result<PathBuf> {
     git_config::get(ROOT_DIR_KEY)?
-        .map(PathBuf::from)
+        .map(|raw| expand_tilde(&raw))
         .ok_or_else(|| anyhow::anyhow!(ROOT_DIR_UNSET_MESSAGE))
+}
+
+/// Expands a leading `~` or `~/...` to the user's home directory, the way a
+/// shell would. `git config` stores values as opaque strings - it never
+/// expands `~` itself - so without this, `gig.root-dir` set to `~/gig-root`
+/// would clone into a literal `./~/gig-root` under the current directory
+/// instead. Only the leading-tilde form is handled; `~user/...` (another
+/// user's home) is left untouched, same as it would be unusable without a
+/// user-database lookup.
+fn expand_tilde(path: &str) -> PathBuf {
+    if path == "~" {
+        home_dir()
+    } else if let Some(rest) = path.strip_prefix("~/") {
+        home_dir().join(rest)
+    } else {
+        PathBuf::from(path)
+    }
+}
+
+/// `$HOME`, or a literal `~` (leaving any `~`-prefixed path unexpanded) if
+/// it isn't set - never a hard failure, since a missing `$HOME` shouldn't
+/// block every other `gig` operation that doesn't need it.
+fn home_dir() -> PathBuf {
+    std::env::var_os("HOME").map_or_else(|| PathBuf::from("~"), PathBuf::from)
 }

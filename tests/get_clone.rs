@@ -68,6 +68,21 @@ fn sourcehut_tilde_user_url_clones_into_the_tilde_prefixed_path() {
 }
 
 #[test]
+fn tilde_prefixed_root_dir_expands_to_the_home_directory() {
+    let harness = GigTest::new();
+    harness.stub_git.seed_config("gig.root-dir", "~/gig-root");
+    let url = "git@github.com:owner/repo.git";
+
+    harness.cmd().args(["get", url]).assert().success();
+
+    assert_cloned(
+        &harness,
+        url,
+        &harness.home_dir.join("gig-root/github.com/owner/repo"),
+    );
+}
+
+#[test]
 fn bare_url_without_get_keyword_behaves_like_explicit_get() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
