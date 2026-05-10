@@ -319,6 +319,7 @@ fn run_config_category(args: CategoryArgs) -> anyhow::Result<()> {
 /// without writing anything, if `name` isn't already declared - `--add`
 /// never creates a category.
 fn run_config_category_add(name: &str, patterns: &[String]) -> anyhow::Result<()> {
+    category_config::validate_name(name)?;
     let existing = category_config::patterns(name)?;
     if existing.is_empty() {
         return Err(category_not_declared_error(name));
@@ -333,6 +334,7 @@ fn run_config_category_add(name: &str, patterns: &[String]) -> anyhow::Result<()
 /// or one that was previously flag-only (i.e. had no *real* pattern to
 /// drop).
 fn run_config_category_replace(name: &str, patterns: &[String]) -> anyhow::Result<()> {
+    category_config::validate_name(name)?;
     let existing = category_config::patterns(name)?;
     if existing
         .iter()

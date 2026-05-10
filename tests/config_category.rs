@@ -384,3 +384,102 @@ fn add_with_no_pattern_argument_errors_and_writes_nothing() {
 
     assert!(harness.stub_git.calls().is_empty());
 }
+
+#[test]
+fn declaring_a_category_whose_name_contains_a_slash_errors_and_writes_nothing() {
+    let harness = GigTest::new();
+
+    harness
+        .cmd()
+        .args([
+            "config",
+            "category",
+            "../etc/personal",
+            r"^github\.com/merikan/",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("../etc/personal"));
+
+    assert!(harness.stub_git.calls().is_empty());
+}
+
+#[test]
+fn declaring_a_category_whose_name_contains_dot_dot_errors_and_writes_nothing() {
+    let harness = GigTest::new();
+
+    harness
+        .cmd()
+        .args(["config", "category", "foo..bar", r"^github\.com/merikan/"])
+        .assert()
+        .failure()
+        .stderr(contains("foo..bar"));
+
+    assert!(harness.stub_git.calls().is_empty());
+}
+
+#[test]
+fn declaring_a_category_whose_name_contains_a_backslash_errors_and_writes_nothing() {
+    let harness = GigTest::new();
+
+    harness
+        .cmd()
+        .args(["config", "category", r"foo\bar", r"^github\.com/merikan/"])
+        .assert()
+        .failure()
+        .stderr(contains(r"foo\bar"));
+
+    assert!(harness.stub_git.calls().is_empty());
+}
+
+#[test]
+fn flag_only_with_a_path_unsafe_name_errors_the_same_way_and_writes_nothing() {
+    let harness = GigTest::new();
+
+    harness
+        .cmd()
+        .args(["config", "category", "../etc", "--flag-only"])
+        .assert()
+        .failure()
+        .stderr(contains("../etc"));
+
+    assert!(harness.stub_git.calls().is_empty());
+}
+
+#[test]
+fn add_with_a_path_unsafe_name_errors_and_writes_nothing() {
+    let harness = GigTest::new();
+
+    harness
+        .cmd()
+        .args([
+            "config",
+            "category",
+            "../etc",
+            r"^github\.com/merikan/",
+            "--add",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("../etc"));
+
+    assert!(harness.stub_git.calls().is_empty());
+}
+
+#[test]
+fn viewing_an_already_declared_category_whose_name_would_now_be_rejected_still_works() {
+    // A name only ever becomes unsafe by being written directly to git config
+    // outside gig (or before this guard existed) - reading it back must still
+    // work, since the guard only applies to declaring/updating a category.
+    let harness = GigTest::new();
+    harness
+        .stub_git
+        .seed_config("gig.category.../etc.pattern", r"^github\.com/merikan/");
+
+    harness
+        .cmd()
+        .args(["config", "category", "../etc"])
+        .assert()
+        .success()
+        .stdout(format!("{}\n", r"^github\.com/merikan/"));
+}

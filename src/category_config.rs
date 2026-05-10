@@ -110,3 +110,17 @@ pub fn add(name: &str, existing: &[String], patterns: &[String]) -> Result<()> {
 fn key(name: &str) -> String {
     format!("gig.category.{name}.pattern")
 }
+
+/// Rejects a category `name` that could escape `root-dir` when interpolated
+/// as a raw path segment (`root-dir/<name>/host/owner/repo`, see
+/// [`crate::category_routing`]) - `/`, `\`, or `..` anywhere in `name` would
+/// let a category's clone target step outside `root-dir`. Only meant to gate
+/// declaring/updating a category ([`add`]/[`replace`]'s callers); reading or
+/// listing an already-declared category never calls this, so a name that
+/// predates this guard still reads back fine.
+pub fn validate_name(name: &str) -> Result<()> {
+    if name.contains('/') || name.contains('\\') || name.contains("..") {
+        bail!("category name '{name}' is not path-safe - it must not contain `/`, `\\`, or `..`");
+    }
+    Ok(())
+}
