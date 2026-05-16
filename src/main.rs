@@ -9,8 +9,8 @@ mod git_ops;
 mod repo_walk;
 mod url_parser;
 
-use clap::Parser;
-use cli::{CategoryArgs, Cli, Commands, ConfigCommand, GetArgs};
+use clap::{CommandFactory, Parser};
+use cli::{CategoryArgs, Cli, Commands, CompletionArgs, ConfigCommand, GetArgs};
 use std::path::{Path, PathBuf};
 
 const ROOT_DIR_KEY: &str = "gig.root-dir";
@@ -25,6 +25,10 @@ fn main() -> anyhow::Result<()> {
         Commands::Get(args) => run_get(&args),
         Commands::Config { command } => run_config(command),
         Commands::List => run_list(),
+        Commands::Completion(args) => {
+            run_completion(&args);
+            Ok(())
+        }
     }
 }
 
@@ -35,7 +39,7 @@ fn main() -> anyhow::Result<()> {
 /// and `gig --debug config ...` both still resolve correctly rather than
 /// having `--debug` mistaken for the URL/subcommand itself.
 fn normalize_args(mut args: Vec<String>) -> Vec<String> {
-    const KNOWN_SUBCOMMANDS: &[&str] = &["get", "config", "list", "ls", "help"];
+    const KNOWN_SUBCOMMANDS: &[&str] = &["get", "config", "list", "ls", "completion", "help"];
     const HELP_FLAGS: &[&str] = &["-h", "--help", "-V", "--version"];
     const GLOBAL_FLAGS: &[&str] = &["--debug"];
 
@@ -368,6 +372,22 @@ fn run_config_category_list() -> anyhow::Result<()> {
         println!("{}\t{}", category.name, category.pattern);
     }
     Ok(())
+}
+
+/// `completion <shell>` - prints a shell completion script to stdout, for
+/// the user to source (e.g. `source <(gig completion bash)`). Structural
+/// only (subcommand/flag names via `clap_complete::generate`) - not dynamic
+/// value completion. See
+/// `docs/adr/0002-scope-shell-completion-to-bash-zsh-fish-structural-only.md`.
+fn run_completion(args: &CompletionArgs) {
+    let mut command = Cli::command();
+    let bin_name = command.get_name().to_string();
+    clap_complete::generate(
+        clap_complete::Shell::from(args.shell),
+        &mut command,
+        bin_name,
+        &mut std::io::stdout(),
+    );
 }
 
 fn run_list() -> anyhow::Result<()> {
