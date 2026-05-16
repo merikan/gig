@@ -161,22 +161,9 @@ Or declare a category with no patterns at all (`--flag-only`), usable only throu
 
 `gig` never moves a repo that's already cloned somewhere else just because you add or change a category rule afterward - it searches existing clone locations non-destructively before deciding where a `get` lands.
 
-## Development
+## Contributing
 
-Build/test tasks are defined in `mise.toml` (run via [mise](https://mise.jdx.dev/), or the underlying `cargo`/`cargo tarpaulin` commands directly):
-
-```sh
-mise run build          # cargo build
-mise run test           # cargo test
-mise run lint           # cargo clippy
-mise run format         # cargo fmt
-mise run check          # cargo check
-mise run ci             # check + lint + test
-mise run test:coverage  # cargo tarpaulin, HTML report in target/coverage
-mise run doc            # cargo doc --open
-```
-
-Tests are CLI-level (black-box, via `assert_cmd`) against a stub `git` binary, not the real one - see `tests/`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, and commit conventions. Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Design rationale for some of the less obvious decisions lives in `docs/adr/`.
 
