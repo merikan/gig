@@ -179,3 +179,7 @@ mise run doc            # cargo doc --open
 Tests are CLI-level (black-box, via `assert_cmd`) against a stub `git` binary, not the real one - see `tests/`.
 
 Design rationale for some of the less obvious decisions lives in `docs/adr/`.
+
+## License
+
+MIT - see [LICENSE](LICENSE).
