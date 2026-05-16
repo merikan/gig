@@ -1,4 +1,4 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum, ValueHint};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -28,6 +28,33 @@ pub enum Commands {
     /// List every repo already cloned under root-dir
     #[command(alias = "ls")]
     List,
+    /// Print a shell completion script to stdout, for sourcing
+    Completion(CompletionArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct CompletionArgs {
+    pub shell: CompletionShell,
+}
+
+/// The shells `gig completion` generates a script for. Deliberately narrower
+/// than `clap_complete::Shell` (which also offers elvish/powershell) - see
+/// `docs/adr/0002-scope-shell-completion-to-bash-zsh-fish-structural-only.md`.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum CompletionShell {
+    Bash,
+    Zsh,
+    Fish,
+}
+
+impl From<CompletionShell> for clap_complete::Shell {
+    fn from(shell: CompletionShell) -> Self {
+        match shell {
+            CompletionShell::Bash => Self::Bash,
+            CompletionShell::Zsh => Self::Zsh,
+            CompletionShell::Fish => Self::Fish,
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -42,7 +69,10 @@ pub struct GetArgs {
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommand {
     /// View or set the root-dir where repos are cloned
-    RootDir { path: Option<String> },
+    RootDir {
+        #[arg(value_hint = ValueHint::DirPath)]
+        path: Option<String>,
+    },
     /// View, set, or list category routing rules
     Category(CategoryArgs),
 }
