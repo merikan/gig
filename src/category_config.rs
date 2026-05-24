@@ -12,6 +12,13 @@ use anyhow::{Result, bail};
 /// category matching uses for precedence.
 const ENUMERATE_PATTERN: &str = r"^gig\.category\..*\.pattern$";
 
+/// The exact `--get-regexp` pattern used to find which category, if any, is
+/// currently marked default. A `gig.category.<name>.default` key's mere
+/// existence *is* the marking - there's no `.default = false` state, only
+/// present (default) or absent (not default) - so [`set_default`] always
+/// removes the key it's demoting rather than writing "false" to it.
+const DEFAULT_PATTERN: &str = r"^gig\.category\..*\.default$";
+
 /// A single declared category and its pattern.
 pub struct Category {
     pub name: String,
@@ -107,8 +114,68 @@ pub fn add(name: &str, existing: &[String], patterns: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// The name of the category currently marked `--default`, if any - the
+/// category `get` routes an otherwise-unmatched clone into instead of bare
+/// `root-dir`. `None` means no category is default. At most one category
+/// can be default at a time, enforced by [`set_default`] rather than by
+/// this read, which simply reports the first (only, under normal use)
+/// `.default` key it finds.
+pub fn default_name() -> Result<Option<String>> {
+    let output = run(&["config", "--get-regexp", DEFAULT_PATTERN])?;
+
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let line = stdout.lines().next().ok_or_else(|| {
+            anyhow::anyhow!(
+                "git config --get-regexp {DEFAULT_PATTERN} matched but produced no output"
+            )
+        })?;
+        let (key, _value) = line.split_once(' ').unwrap_or((line, ""));
+        let name = key
+            .strip_prefix("gig.category.")
+            .and_then(|rest| rest.strip_suffix(".default"))
+            .ok_or_else(|| anyhow::anyhow!("unexpected `git config --get-regexp` key: {key}"))?;
+        Ok(Some(name.to_string()))
+    } else if output.status.code() == Some(1) {
+        Ok(None)
+    } else {
+        bail!(
+            "git config --get-regexp {DEFAULT_PATTERN} failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+}
+
+/// Marks `name` as the default category, auto-demoting whichever category
+/// (if any) was previously default. Returns the demoted category's name,
+/// for the caller to warn about - `None` covers both "there was no prior
+/// default" and "`name` already was the default" (idempotent: re-marking
+/// the current default demotes nothing and warns about nothing).
+pub fn set_default(name: &str) -> Result<Option<String>> {
+    let previous = default_name()?;
+    if previous.as_deref() == Some(name) {
+        return Ok(None);
+    }
+    if let Some(previous_name) = &previous {
+        git_config::unset_global(&default_key(previous_name))?;
+    }
+    git_config::set_global(&default_key(name), "true")?;
+    Ok(previous)
+}
+
+/// Clears `name`'s default flag. Idempotent - a no-op, not an error, if
+/// `name` wasn't the default (or isn't declared at all): the end state
+/// ("`name` isn't default") already holds either way.
+pub fn unset_default(name: &str) -> Result<()> {
+    git_config::unset_global(&default_key(name))
+}
+
 fn key(name: &str) -> String {
     format!("gig.category.{name}.pattern")
+}
+
+fn default_key(name: &str) -> String {
+    format!("gig.category.{name}.default")
 }
 
 /// Rejects a category `name` that could escape `root-dir` when interpolated

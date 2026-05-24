@@ -10,7 +10,7 @@ Authentication is fully delegated to your system's existing `ssh-agent`/git cred
 
 - **Predictable clone paths** - `gig get <url>` always resolves to `root-dir/host/owner/repo`, regardless of your current directory.
 - **Clone-or-update, never clobber** - re-running `gig get` on an already-cloned repo no-ops (or pulls, with `--pull`); it refuses to touch a destination that exists but isn't a clone.
-- **Category routing** - declare regex rules that route clones under a different subtree (e.g. work repos under `~/root-dir/work`,  oss ones under `~/root-dir/oss`) instead of the default `root-dir` root.
+- **Category routing** - declare regex rules that route clones under a different subtree (e.g. work repos under `~/root-dir/work`,  oss ones under `~/root-dir/oss`) instead of the default `root-dir` root, with an optional default category to catch anything unmatched.
 - **Shell completion** - structural completion (subcommand/flag names) for bash, zsh, and fish.
 
 ## Installation
@@ -95,6 +95,8 @@ gig config category work               # print one category's patterns
 gig config category work '^gitlab\.company\.com/'   # declare/replace
 gig config category work '^github\.com/my-employer/' --add  # append a pattern
 gig config category adhoc --flag-only  # declare with no patterns - usable only via --category
+gig config category personal --default # route anything unmatched here (see Category routing)
+gig config category personal --no-default  # stop being the fallback, patterns untouched
 ```
 
 ### `gig list` (alias: `gig ls`)
@@ -158,6 +160,21 @@ gig get https://github.com/some/repo --category work
 ```
 
 Or declare a category with no patterns at all (`--flag-only`), usable only through the explicit `--category` override, never automatically.
+
+### Default category
+
+To route everything that no other category's pattern matches, mark one category `--default` instead of the default `root-dir` root:
+
+```sh
+gig config category personal --default
+
+gig get https://github.com/some/unmatched-repo
+# no category pattern matched -> root-dir/personal/github.com/some/unmatched-repo
+```
+
+`--default` is independent of patterns - a category can carry real patterns *and* be the default, matching normally by pattern first and only catching leftovers when nothing (including itself) matched. Only one category can be default at a time; marking a new one auto-demotes the previous, with a warning. `--no-default` clears the flag again (patterns untouched, safe to run even if the category wasn't already default).
+
+This replaces the older trick of declaring a catch-all pattern (e.g. `.*`) as the *last* category, which only worked because matching is first-match-in-declaration-order - reordering categories later would silently break it. `--default` isn't affected by declaration order.
 
 `gig` never moves a repo that's already cloned somewhere else just because you add or change a category rule afterward - it searches existing clone locations non-destructively before deciding where a `get` lands.
 
