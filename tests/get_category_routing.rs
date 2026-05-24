@@ -199,6 +199,115 @@ fn an_invalid_regex_among_several_patterns_in_a_category_still_aborts_up_front_n
 }
 
 #[test]
+fn a_url_matching_no_category_routes_to_the_declared_default_category() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+    harness
+        .stub_git
+        .seed_config("gig.category.personal.pattern", "");
+    harness
+        .stub_git
+        .seed_config("gig.category.personal.default", "true");
+    let url = "git@github.com:someone-else/repo.git";
+
+    harness.cmd().args(["get", url]).assert().success();
+
+    let destination = root_dir.join("personal/github.com/someone-else/repo");
+    assert_eq!(
+        harness.stub_git.calls_starting_with("clone\t"),
+        vec![format!("clone\t{url}\t{}", destination.display())]
+    );
+}
+
+#[test]
+fn a_url_matching_a_declared_categorys_pattern_still_wins_over_the_default() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+    harness
+        .stub_git
+        .seed_config("gig.category.work.pattern", r"^gitlab\.company\.com/");
+    harness
+        .stub_git
+        .seed_config("gig.category.personal.pattern", "");
+    harness
+        .stub_git
+        .seed_config("gig.category.personal.default", "true");
+    let url = "https://gitlab.company.com/team/service";
+
+    harness.cmd().args(["get", url]).assert().success();
+
+    let destination = root_dir.join("work/gitlab.company.com/team/service");
+    assert_eq!(
+        harness.stub_git.calls_starting_with("clone\t"),
+        vec![format!("clone\t{url}\t{}", destination.display())]
+    );
+}
+
+#[test]
+fn the_category_flag_still_overrides_the_declared_default() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+    harness
+        .stub_git
+        .seed_config("gig.category.personal.pattern", "");
+    harness
+        .stub_git
+        .seed_config("gig.category.personal.default", "true");
+    harness
+        .stub_git
+        .seed_config("gig.category.work.pattern", "");
+    let url = "git@github.com:someone-else/repo.git";
+
+    harness
+        .cmd()
+        .args(["get", url, "--category", "work"])
+        .assert()
+        .success();
+
+    let destination = root_dir.join("work/github.com/someone-else/repo");
+    assert_eq!(
+        harness.stub_git.calls_starting_with("clone\t"),
+        vec![format!("clone\t{url}\t{}", destination.display())]
+    );
+}
+
+#[test]
+fn a_default_category_with_its_own_patterns_matches_them_normally_and_still_catches_the_rest() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+    harness
+        .stub_git
+        .seed_config("gig.category.personal.pattern", r"^github\.com/merikan/");
+    harness
+        .stub_git
+        .seed_config("gig.category.personal.default", "true");
+
+    // Matches "personal"'s own pattern.
+    harness
+        .cmd()
+        .args(["get", "git@github.com:merikan/gig.git"])
+        .assert()
+        .success();
+    // Matches nothing - falls back to "personal" anyway, since it's default.
+    harness
+        .cmd()
+        .args(["get", "git@github.com:someone-else/repo.git"])
+        .assert()
+        .success();
+
+    assert!(
+        root_dir
+            .join("personal/github.com/merikan/gig/.git")
+            .is_dir()
+    );
+    assert!(
+        root_dir
+            .join("personal/github.com/someone-else/repo/.git")
+            .is_dir()
+    );
+}
+
+#[test]
 fn after_a_category_placed_clone_list_shows_it_with_the_category_as_a_prefix() {
     let harness = GigTest::new();
     harness.seed_root_dir();

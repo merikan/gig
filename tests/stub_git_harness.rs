@@ -272,6 +272,59 @@ fn replace_all_global_clears_prior_values_and_keeps_the_keys_original_position()
 }
 
 #[test]
+fn unset_global_removes_the_key_and_reports_success() {
+    let temp = tempfile::tempdir().unwrap();
+    let stub = StubGit::install(temp.path());
+    stub.command()
+        .args([
+            "config",
+            "--global",
+            "gig.category.personal.default",
+            "true",
+        ])
+        .status()
+        .expect("seed default flag");
+
+    let status = stub
+        .command()
+        .args([
+            "config",
+            "--unset",
+            "--global",
+            "gig.category.personal.default",
+        ])
+        .status()
+        .expect("run stub git unset");
+
+    assert!(status.success());
+    let output = stub
+        .command()
+        .args(["config", "--get", "gig.category.personal.default"])
+        .output()
+        .expect("run stub git get");
+    assert!(!output.status.success());
+}
+
+#[test]
+fn unset_global_on_a_key_that_was_never_set_fails_with_exit_code_5() {
+    let temp = tempfile::tempdir().unwrap();
+    let stub = StubGit::install(temp.path());
+
+    let status = stub
+        .command()
+        .args([
+            "config",
+            "--unset",
+            "--global",
+            "gig.category.ghost.default",
+        ])
+        .status()
+        .expect("run stub git unset");
+
+    assert_eq!(status.code(), Some(5));
+}
+
+#[test]
 fn configurable_exit_code_and_output() {
     let temp = tempfile::tempdir().unwrap();
     let stub = StubGit::install(temp.path());

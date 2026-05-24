@@ -16,3 +16,6 @@ _Avoid_: "existing destination" (ambiguous - both already-cloned and occupied de
 
 **Candidate destination**:
 A destination path considered during the non-destructive existing-clone search - `get` probes the default destination and every declared category's destination for a URL, without touching disk, before settling on the one destination it will act on. Distinct from Destination: a URL has exactly one destination but may have several candidate destinations.
+
+**Default category**:
+A declared category marked `--default`, used to route a clone when no declared category's pattern matched the URL - instead of falling back to bare `root-dir`. Independent of a category's patterns: a category can match its own patterns *and* be the default, catching only what nothing else (including itself) matched. At most one category is default at a time. See [ADR 0004](docs/adr/0004-default-category-as-orthogonal-flag.md).

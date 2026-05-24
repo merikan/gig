@@ -104,8 +104,8 @@ fn write_store(entries: &[(String, String)]) {
 
 /// Handles the `git config` forms gig uses today: `--get <key>`,
 /// `--get-all <key>`, `--global <key> <value>`, `--add --global <key>
-/// <value>`, `--replace-all --global <key> <value>`, and `--get-regexp
-/// <pattern>`.
+/// <value>`, `--replace-all --global <key> <value>`, `--unset --global
+/// <key>`, and `--get-regexp <pattern>`.
 fn handle_config(args: &[String]) -> ExitCode {
     match args {
         [flag, key] if flag == "--get" => {
@@ -134,6 +134,7 @@ fn handle_config(args: &[String]) -> ExitCode {
         [flag1, flag2, key, value] if flag1 == "--replace-all" && flag2 == "--global" => {
             handle_replace_all(key, value)
         }
+        [flag1, flag2, key] if flag1 == "--unset" && flag2 == "--global" => handle_unset(key),
         [flag, pattern] if flag == "--get-regexp" => handle_get_regexp(pattern),
         _ => ExitCode::FAILURE,
     }
@@ -186,23 +187,45 @@ fn handle_replace_all(key: &str, value: &str) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// `git config --get-regexp <pattern>`. gig only ever asks for the one fixed
-/// category-enumeration pattern (`^gig\.category\..*\.pattern$`), so rather
-/// than embedding a real regex engine in the stub, this matches that pattern's
-/// shape directly (`gig.category.<name>.pattern`) and fails closed - the same
-/// unknown-form-fails contract every other unrecognized `git` invocation gets
-/// here - for anything else. Matches print as `<key> <value>`, one per line in
-/// store (declaration) order, exactly like real git - including the trailing
+/// `git config --unset --global <key>` - drops `key` if present. Real git
+/// reports "nothing to unset" via a non-zero exit rather than success, so
+/// this mirrors that: exit code 5 when `key` wasn't in the store, matching
+/// what `git_config::unset_global` already treats as "already absent, not
+/// an error".
+fn handle_unset(key: &str) -> ExitCode {
+    let mut store = read_store();
+    let existed = store.iter().any(|(k, _)| k == key);
+    store.retain(|(k, _)| k != key);
+    write_store(&store);
+    if existed {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(5)
+    }
+}
+
+/// `git config --get-regexp <pattern>`. gig only ever asks for two fixed
+/// patterns - category enumeration (`^gig\.category\..*\.pattern$`) and
+/// default-category lookup (`^gig\.category\..*\.default$`) - so rather
+/// than embedding a real regex engine in the stub, this matches each
+/// pattern's shape directly and fails closed - the same unknown-form-fails
+/// contract every other unrecognized `git` invocation gets here - for
+/// anything else. Matches print as `<key> <value>`, one per line in store
+/// (declaration) order, exactly like real git - including the trailing
 /// space before the newline real git emits for an empty value.
 fn handle_get_regexp(pattern: &str) -> ExitCode {
-    if pattern != r"^gig\.category\..*\.pattern$" {
+    let suffix = if pattern == r"^gig\.category\..*\.pattern$" {
+        ".pattern"
+    } else if pattern == r"^gig\.category\..*\.default$" {
+        ".default"
+    } else {
         return ExitCode::FAILURE;
-    }
+    };
 
     let store = read_store();
     let matches: Vec<_> = store
         .iter()
-        .filter(|(k, _)| k.starts_with("gig.category.") && k.ends_with(".pattern"))
+        .filter(|(k, _)| k.starts_with("gig.category.") && k.ends_with(suffix))
         .collect();
 
     if matches.is_empty() {

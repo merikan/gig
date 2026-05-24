@@ -76,6 +76,24 @@ pub fn add_global(key: &str, value: &str) -> Result<()> {
     }
 }
 
+/// `git config --unset --global <key>` - removes `key` if present. A
+/// missing key isn't an error: real git reports "nothing to unset" via a
+/// non-zero exit (1 or 5, depending on version) rather than success, but the
+/// end state the caller wants (`key` absent) already holds either way, so
+/// this treats both the same as [`get`] treats a missing key.
+pub fn unset_global(key: &str) -> Result<()> {
+    let output = run(&["config", "--unset", "--global", key])?;
+
+    if output.status.success() || matches!(output.status.code(), Some(1 | 5)) {
+        Ok(())
+    } else {
+        bail!(
+            "git config --unset --global {key} failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+}
+
 /// `git config --replace-all --global <key> <value>` - clears every existing
 /// value of `key` and writes `value` as its sole remaining one. Used instead
 /// of plain [`set_global`] whenever a key might already hold (or is about to

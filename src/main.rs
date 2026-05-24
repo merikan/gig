@@ -63,14 +63,20 @@ fn run_get(args: &GetArgs) -> anyhow::Result<()> {
     let root_dir = root_dir()?;
     let parsed = url_parser::parse(&args.url)?;
     let categories = category_config::list()?;
+    let default_category = category_config::default_name()?;
 
     // Resolved (and validated) unconditionally, even when the existing-clone
     // search below ends up overriding it: every declared category's pattern
     // must compile, and an explicit `--category` must reference an
     // already-declared category, on every invocation - not just the ones
     // that actually need a freshly resolved destination.
-    let destination_root =
-        resolve_destination_root(&root_dir, &parsed, args.category.as_deref(), &categories)?;
+    let destination_root = resolve_destination_root(
+        &root_dir,
+        &parsed,
+        args.category.as_deref(),
+        &categories,
+        default_category.as_deref(),
+    )?;
 
     let destination = find_existing_clone(&root_dir, &parsed, &categories)
         .unwrap_or_else(|| destination::destination_path(&destination_root, &parsed));
@@ -113,12 +119,16 @@ fn run_get(args: &GetArgs) -> anyhow::Result<()> {
 /// outright and must reference an already-declared category - otherwise
 /// this errors and no clone is attempted. Absent that, `parsed`'s normalized
 /// `host/owner/repo` string is matched against every declared category's
-/// pattern (first match in git-config declaration order wins).
+/// pattern (first match in git-config declaration order wins). Absent a
+/// match too, `default_category` (if any) applies instead of bare
+/// `root_dir` - the category declared `--default`, per
+/// [`category_config::default_name`].
 fn resolve_destination_root(
     root_dir: &Path,
     parsed: &url_parser::ParsedUrl,
     category_override: Option<&str>,
     categories: &[category_config::Category],
+    default_category: Option<&str>,
 ) -> anyhow::Result<PathBuf> {
     let matched = category_routing::resolve(categories, &parsed.normalized_path())?;
     debug_log::log(format!(
@@ -127,6 +137,13 @@ fn resolve_destination_root(
         categories.len(),
         matched.as_deref().unwrap_or("no match")
     ));
+    if matched.is_none()
+        && let Some(default) = default_category
+    {
+        debug_log::log(format!(
+            "no pattern matched; falling back to default category '{default}'"
+        ));
+    }
 
     let category = match category_override {
         Some(name) => {
@@ -138,7 +155,7 @@ fn resolve_destination_root(
             ));
             Some(name.to_string())
         }
-        None => matched,
+        None => matched.or_else(|| default_category.map(str::to_string)),
     };
     Ok(category.map_or_else(|| root_dir.to_path_buf(), |name| root_dir.join(name)))
 }
@@ -277,18 +294,23 @@ fn run_config(command: ConfigCommand) -> anyhow::Result<()> {
     }
 }
 
-/// `config category [<name>] [<pattern> ...] [--add] [--flag-only]` - see
-/// the `CategoryArgs` doc comment in `cli.rs` for the full set of forms.
+/// `config category [<name>] [<pattern> ...] [--add] [--flag-only]
+/// [--default] [--no-default]` - see the `CategoryArgs` doc comment in
+/// `cli.rs` for the full set of forms.
 fn run_config_category(args: CategoryArgs) -> anyhow::Result<()> {
     let CategoryArgs {
         name,
         patterns,
         flag_only,
         add,
+        default,
+        no_default,
     } = args;
     let Some(name) = name else {
-        if flag_only || add || !patterns.is_empty() {
-            anyhow::bail!("--add, --flag-only, and <pattern> require a category <name>");
+        if flag_only || add || default || no_default || !patterns.is_empty() {
+            anyhow::bail!(
+                "--add, --flag-only, --default, --no-default, and <pattern> require a category <name>"
+            );
         }
         return run_config_category_list();
     };
@@ -306,16 +328,61 @@ fn run_config_category(args: CategoryArgs) -> anyhow::Result<()> {
     if add && patterns.is_empty() {
         anyhow::bail!("at least one pattern is required with --add");
     }
+    if default && no_default {
+        anyhow::bail!(
+            "--default and --no-default are mutually exclusive - `config category {name}` was given both"
+        );
+    }
+    if add && (default || no_default) {
+        anyhow::bail!(
+            "--add cannot be combined with --default or --no-default - `config category {name}` was given both"
+        );
+    }
 
     if add {
-        run_config_category_add(&name, &patterns)
+        run_config_category_add(&name, &patterns)?;
     } else if flag_only {
-        run_config_category_replace(&name, &[String::new()])
+        run_config_category_replace(&name, &[String::new()])?;
     } else if !patterns.is_empty() {
-        run_config_category_replace(&name, &patterns)
-    } else {
-        run_config_category_view(&name)
+        run_config_category_replace(&name, &patterns)?;
+    } else if !default && !no_default {
+        return run_config_category_view(&name);
+    } else if default {
+        // `--default` alone (no patterns/--flag-only) on an undeclared name
+        // declares it flag-only first, same as `--flag-only` would - an
+        // already-declared name's patterns are left untouched. Validated
+        // unconditionally, same as `--flag-only`'s own replace, not just on
+        // the create path.
+        category_config::validate_name(&name)?;
+        let existing = category_config::patterns(&name)?;
+        if existing.is_empty() {
+            category_config::replace(&name, &existing, &[String::new()])?;
+        }
     }
+
+    if default {
+        run_config_category_mark_default(&name)
+    } else if no_default {
+        // `--no-default` alone on an undeclared (or never-default) name is
+        // a no-op: the end state ("not default") already holds.
+        category_config::unset_default(&name)
+    } else {
+        Ok(())
+    }
+}
+
+/// `config category <name> --default`: marks `name` as the category `get`
+/// falls back to when no declared category's pattern matches. Auto-demotes
+/// whichever category was previously default, printing a warning when doing
+/// so actually changed anything (re-marking the current default is a no-op,
+/// no warning).
+fn run_config_category_mark_default(name: &str) -> anyhow::Result<()> {
+    if let Some(previous) = category_config::set_default(name)? {
+        eprintln!(
+            "warning: `config category {name} --default` replaced '{previous}' as the default category"
+        );
+    }
+    Ok(())
 }
 
 /// `config category <name> <pattern> ... --add`: appends `patterns` to an
@@ -352,24 +419,36 @@ fn run_config_category_replace(name: &str, patterns: &[String]) -> anyhow::Resul
 }
 
 /// `config category <name>` (view): every pattern currently declared for
-/// `name`, one per line, in declaration/add order. Errors if `name` isn't
-/// declared.
+/// `name`, one per line, in declaration/add order - each line gets a
+/// trailing `\tdefault` field if `name` is the default category. Errors if
+/// `name` isn't declared.
 fn run_config_category_view(name: &str) -> anyhow::Result<()> {
     let patterns = category_config::patterns(name)?;
     if patterns.is_empty() {
         return Err(category_not_declared_error(name));
     }
+    let is_default = category_config::default_name()?.as_deref() == Some(name);
     for pattern in patterns {
-        println!("{pattern}");
+        if is_default {
+            println!("{pattern}\tdefault");
+        } else {
+            println!("{pattern}");
+        }
     }
     Ok(())
 }
 
 /// `config category` with no name: every declared category, one per line,
-/// `<name>\t<pattern>`, in git-config declaration order.
+/// `<name>\t<pattern>`, in git-config declaration order - the default
+/// category's line(s) get a trailing `\tdefault` field.
 fn run_config_category_list() -> anyhow::Result<()> {
+    let default = category_config::default_name()?;
     for category in category_config::list()? {
-        println!("{}\t{}", category.name, category.pattern);
+        if default.as_deref() == Some(category.name.as_str()) {
+            println!("{}\t{}\tdefault", category.name, category.pattern);
+        } else {
+            println!("{}\t{}", category.name, category.pattern);
+        }
     }
     Ok(())
 }
