@@ -11,6 +11,7 @@ Authentication is fully delegated to your system's existing `ssh-agent`/git cred
 - **Predictable clone paths** - `gig get <url>` always resolves to `root-dir/host/owner/repo`, regardless of your current directory.
 - **Clone-or-update, never clobber** - re-running `gig get` on an already-cloned repo no-ops (or pulls, with `--pull`); it refuses to touch a destination that exists but isn't a clone.
 - **Category routing** - declare regex rules that route clones under a different subtree (e.g. work repos under `~/root-dir/work`,  oss ones under `~/root-dir/oss`) instead of the default `root-dir` root, with an optional default category to catch anything unmatched.
+- **Interactive cd** - `gig cd` opens a fuzzy-searchable picker of every repo already cloned under `root-dir` and, with `gig shellenv` set up, `cd`s into the one you pick.
 - **Shell completion** - structural completion (subcommand/flag names) for bash, zsh, and fish.
 
 ## Installation
@@ -107,6 +108,46 @@ List every repo already cloned under `root-dir`, as plain relative paths:
 gig list
 # github.com/rust-lang/rust
 # gitlab.company.com/team/service
+```
+
+### `gig cd`
+
+Opens a fuzzy-searchable picker (type to filter, arrows to move, Enter to pick) of every repo already cloned under `root-dir` - the same set `gig list` prints. On its own, `gig cd` can only print the chosen repo's absolute path to stdout; it's a separate process and can't change your shell's working directory. Pair it with `gig shellenv` (below) to actually `cd`:
+
+```sh
+gig cd
+# type to filter, Enter to select - your shell cd's into the chosen repo
+```
+
+Without `gig shellenv` set up, you can still use it manually:
+
+```sh
+cd "$(gig cd)"
+```
+
+Errors (nothing found under `root-dir`, the picker cancelled, stderr isn't a terminal) print to stderr and print nothing to stdout, so a `cd "$(gig cd)"` never `cd`s anywhere on failure.
+
+### `gig shellenv <shell>`
+
+Prints a shell function for `bash`, `zsh`, or `fish` that wires `gig cd`'s picker into an actual `cd` - every other subcommand passes through to `gig` unchanged. `eval`/`source` its output:
+
+```sh
+eval "$(gig shellenv bash)"
+eval "$(gig shellenv zsh)"
+gig shellenv fish | source
+```
+
+To make it permanent, append the relevant line to your shell's startup file:
+
+```sh
+# ~/.bashrc
+echo 'eval "$(gig shellenv bash)"' >> ~/.bashrc
+
+# ~/.zshrc
+echo 'eval "$(gig shellenv zsh)"' >> ~/.zshrc
+
+# ~/.config/fish/config.fish
+echo 'gig shellenv fish | source' >> ~/.config/fish/config.fish
 ```
 
 ### `gig completion <shell>`

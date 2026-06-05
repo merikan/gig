@@ -28,31 +28,42 @@ pub enum Commands {
     /// List every repo already cloned under root-dir
     #[command(alias = "ls")]
     List,
+    /// Interactively pick a cloned repo and print its path - pair with
+    /// `gig shellenv` to actually cd into it
+    Cd,
     /// Print a shell completion script to stdout, for sourcing
     Completion(CompletionArgs),
+    /// Print a shell function wiring `gig cd`'s picker into `cd` - eval its output
+    Shellenv(ShellenvArgs),
 }
 
 #[derive(Debug, Args)]
 pub struct CompletionArgs {
-    pub shell: CompletionShell,
+    pub shell: Shell,
 }
 
-/// The shells `gig completion` generates a script for. Deliberately narrower
-/// than `clap_complete::Shell` (which also offers elvish/powershell) - see
+#[derive(Debug, Args)]
+pub struct ShellenvArgs {
+    pub shell: Shell,
+}
+
+/// The shells `gig completion` and `gig shellenv` generate output for.
+/// Deliberately narrower than `clap_complete::Shell` (which also offers
+/// elvish/powershell) - see
 /// `docs/adr/0002-scope-shell-completion-to-bash-zsh-fish-structural-only.md`.
 #[derive(Debug, Clone, Copy, ValueEnum)]
-pub enum CompletionShell {
+pub enum Shell {
     Bash,
     Zsh,
     Fish,
 }
 
-impl From<CompletionShell> for clap_complete::Shell {
-    fn from(shell: CompletionShell) -> Self {
+impl From<Shell> for clap_complete::Shell {
+    fn from(shell: Shell) -> Self {
         match shell {
-            CompletionShell::Bash => Self::Bash,
-            CompletionShell::Zsh => Self::Zsh,
-            CompletionShell::Fish => Self::Fish,
+            Shell::Bash => Self::Bash,
+            Shell::Zsh => Self::Zsh,
+            Shell::Fish => Self::Fish,
         }
     }
 }

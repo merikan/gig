@@ -7,10 +7,14 @@ mod git_cmd;
 mod git_config;
 mod git_ops;
 mod repo_walk;
+mod shellenv;
 mod url_parser;
 
+use anyhow::Context;
 use clap::{CommandFactory, Parser};
-use cli::{CategoryArgs, Cli, Commands, CompletionArgs, ConfigCommand, GetArgs};
+use cli::{CategoryArgs, Cli, Commands, CompletionArgs, ConfigCommand, GetArgs, ShellenvArgs};
+use dialoguer::FuzzySelect;
+use dialoguer::console::Term;
 use std::path::{Path, PathBuf};
 
 const ROOT_DIR_KEY: &str = "gig.root-dir";
@@ -25,8 +29,13 @@ fn main() -> anyhow::Result<()> {
         Commands::Get(args) => run_get(&args),
         Commands::Config { command } => run_config(command),
         Commands::List => run_list(),
+        Commands::Cd => run_cd(),
         Commands::Completion(args) => {
             run_completion(&args);
+            Ok(())
+        }
+        Commands::Shellenv(args) => {
+            run_shellenv(&args);
             Ok(())
         }
     }
@@ -39,7 +48,16 @@ fn main() -> anyhow::Result<()> {
 /// and `gig --debug config ...` both still resolve correctly rather than
 /// having `--debug` mistaken for the URL/subcommand itself.
 fn normalize_args(mut args: Vec<String>) -> Vec<String> {
-    const KNOWN_SUBCOMMANDS: &[&str] = &["get", "config", "list", "ls", "completion", "help"];
+    const KNOWN_SUBCOMMANDS: &[&str] = &[
+        "get",
+        "config",
+        "list",
+        "ls",
+        "cd",
+        "completion",
+        "shellenv",
+        "help",
+    ];
     const HELP_FLAGS: &[&str] = &["-h", "--help", "-V", "--version"];
     const GLOBAL_FLAGS: &[&str] = &["--debug"];
 
@@ -476,6 +494,63 @@ fn run_list() -> anyhow::Result<()> {
         println!("{}", repo.display());
     }
     Ok(())
+}
+
+/// `cd` - the same repo listing `list` prints, offered as an interactive
+/// fuzzy picker. On a selection, prints that repo's absolute path to stdout
+/// and nothing else; on cancel (Esc/Ctrl-C) or any other failure, prints
+/// nothing to stdout and returns an error. `gig cd` alone doesn't change your
+/// shell's working directory - it can't, being a separate process - so this
+/// only prints the path; `gig shellenv` wires it into an actual `cd`. See
+/// `docs/adr/0005-shell-integration-via-stderr-picker-not-a-pty-wrapper.md`.
+fn run_cd() -> anyhow::Result<()> {
+    let root_dir = root_dir()?;
+    let repos = repo_walk::find_repos(&root_dir)?;
+    if repos.is_empty() {
+        anyhow::bail!(
+            "no repos found under {} - run `gig get <url>` to clone one first",
+            root_dir.display()
+        );
+    }
+
+    // The picker is drawn on stderr, deliberately - it keeps stdout free for
+    // exactly one thing, the chosen path, so `gig shellenv`'s shell function
+    // can capture it via plain command substitution instead of needing a PTY
+    // wrapper. Checked explicitly (rather than letting dialoguer surface
+    // whatever it does for a non-terminal) so the failure mode is a clear,
+    // gig-authored message.
+    let term = Term::stderr();
+    if !term.is_term() {
+        anyhow::bail!("gig cd requires an interactive terminal (stderr is not a tty)");
+    }
+
+    let labels: Vec<String> = repos
+        .iter()
+        .map(|repo| repo.display().to_string())
+        .collect();
+    let selection = FuzzySelect::new()
+        .with_prompt("Select a repo")
+        .items(&labels)
+        .interact_on_opt(&term)
+        .context("failed to run the interactive picker")?;
+
+    let Some(index) = selection else {
+        anyhow::bail!("cancelled");
+    };
+    let Some(repo) = repos.get(index) else {
+        anyhow::bail!("picker returned an out-of-range selection");
+    };
+
+    println!("{}", root_dir.join(repo).display());
+    Ok(())
+}
+
+/// `shellenv <shell>` - prints a shell function to stdout for the user to
+/// `eval`/`source`, wiring `gig cd`'s picker (see [`run_cd`]) into an actual
+/// `cd` in their shell. Every other subcommand passes through unchanged. See
+/// `docs/adr/0005-shell-integration-via-stderr-picker-not-a-pty-wrapper.md`.
+fn run_shellenv(args: &ShellenvArgs) {
+    print!("{}", shellenv::script(args.shell));
 }
 
 /// The configured `root-dir`, or the actionable "not set" error - the
