@@ -30,16 +30,25 @@ pub enum Commands {
     List,
     /// Interactively pick a cloned repo and print its path - pair with
     /// `gig shellenv` to actually cd into it
-    Cd,
+    Cd(CdArgs),
     /// Print a shell completion script to stdout, for sourcing
     Completion(CompletionArgs),
-    /// Print a shell function wiring `gig cd`'s picker into `cd` - eval its output
+    /// Output shell function for auto-cd
     Shellenv(ShellenvArgs),
 }
 
 #[derive(Debug, Args)]
 pub struct CompletionArgs {
     pub shell: Shell,
+}
+
+#[derive(Debug, Args)]
+pub struct CdArgs {
+    /// Fuzzy-search text the picker starts filtered to - lets `gig shellenv`'s
+    /// Tab-triggered picker (see
+    /// `docs/adr/0006-tab-triggered-picker-per-shell-mechanism.md`) hand it
+    /// whatever the user had already typed after `gig cd`
+    pub filter: Option<String>,
 }
 
 #[derive(Debug, Args)]
