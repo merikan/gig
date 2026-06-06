@@ -12,7 +12,9 @@ mod url_parser;
 
 use anyhow::Context;
 use clap::{CommandFactory, Parser};
-use cli::{CategoryArgs, Cli, Commands, CompletionArgs, ConfigCommand, GetArgs, ShellenvArgs};
+use cli::{
+    CategoryArgs, CdArgs, Cli, Commands, CompletionArgs, ConfigCommand, GetArgs, ShellenvArgs,
+};
 use dialoguer::FuzzySelect;
 use dialoguer::console::Term;
 use std::path::{Path, PathBuf};
@@ -29,7 +31,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Get(args) => run_get(&args),
         Commands::Config { command } => run_config(command),
         Commands::List => run_list(),
-        Commands::Cd => run_cd(),
+        Commands::Cd(args) => run_cd(&args),
         Commands::Completion(args) => {
             run_completion(&args);
             Ok(())
@@ -496,14 +498,18 @@ fn run_list() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// `cd` - the same repo listing `list` prints, offered as an interactive
-/// fuzzy picker. On a selection, prints that repo's absolute path to stdout
-/// and nothing else; on cancel (Esc/Ctrl-C) or any other failure, prints
-/// nothing to stdout and returns an error. `gig cd` alone doesn't change your
-/// shell's working directory - it can't, being a separate process - so this
-/// only prints the path; `gig shellenv` wires it into an actual `cd`. See
+/// `cd [filter]` - the same repo listing `list` prints, offered as an
+/// interactive fuzzy picker, optionally pre-filtered by `filter` (used by
+/// `gig shellenv`'s Tab-triggered picker to hand over whatever the user had
+/// already typed - see
+/// `docs/adr/0006-tab-triggered-picker-per-shell-mechanism.md`). On a
+/// selection, prints that repo's absolute path to stdout and nothing else;
+/// on cancel (Esc/Ctrl-C) or any other failure, prints nothing to stdout and
+/// returns an error. `gig cd` alone doesn't change your shell's working
+/// directory - it can't, being a separate process - so this only prints the
+/// path; `gig shellenv` wires it into an actual `cd`. See
 /// `docs/adr/0005-shell-integration-via-stderr-picker-not-a-pty-wrapper.md`.
-fn run_cd() -> anyhow::Result<()> {
+fn run_cd(args: &CdArgs) -> anyhow::Result<()> {
     let root_dir = root_dir()?;
     let repos = repo_walk::find_repos(&root_dir)?;
     if repos.is_empty() {
@@ -531,6 +537,7 @@ fn run_cd() -> anyhow::Result<()> {
     let selection = FuzzySelect::new()
         .with_prompt("Select a repo")
         .items(&labels)
+        .with_initial_text(args.filter.as_deref().unwrap_or_default())
         .interact_on_opt(&term)
         .context("failed to run the interactive picker")?;
 
