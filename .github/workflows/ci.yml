@@ -56,18 +56,18 @@ jobs:
       - run: cargo test --target ${{ matrix.target }}
 
   # Code Coverage Analysis
-  coverage:
-    name: 📊 Code Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v4
-        env:
-          MISE_ENABLE_TOOLS: "rust,cargo:cargo-tarpaulin"
-      - uses: Swatinem/rust-cache@v2
-      - run: mise run test:coverage
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: coverage-report
-          path: target/coverage/
+  # coverage:
+  #   name: 📊 Code Coverage
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - uses: jdx/mise-action@v4
+  #       env:
+  #         MISE_ENABLE_TOOLS: "rust,cargo:cargo-tarpaulin"
+  #     - uses: Swatinem/rust-cache@v2
+  #     - run: mise run test:coverage
+  #     - uses: actions/upload-artifact@v7
+  #       if: always()
+  #       with:
+  #         name: coverage-report
+  #         path: target/coverage/
