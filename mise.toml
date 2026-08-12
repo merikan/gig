@@ -4,6 +4,8 @@ _.path = ["./target/debug"]
 [tools]
 rust = { version = "latest", components = "rust-analyzer" }
 "cargo:cargo-tarpaulin" = "latest"
+actionlint = "latest"
+tombi = "latest"
 
 [settings]
 lockfile = true
@@ -33,7 +35,11 @@ echo "Coverage report generated: target/coverage/tarpaulin-report.html"
 
 [tasks.lint]
 description = "Lint the code with Clippy"
-run = "cargo clippy"
+run = """
+echo "running clippy"; cargo clippy
+echo "running tombi"; tombi lint mise.toml
+echo "running actionlint"; actionlint .github/workflows/*.yml
+"""
 
 [tasks."fmt:check"]
 description = "Check code formatting without modifying files"
