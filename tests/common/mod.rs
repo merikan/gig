@@ -22,7 +22,7 @@ impl StubGit {
         fs::create_dir_all(&bin_dir).expect("create stub-git bin dir");
 
         let stub_git_bin = assert_cmd::cargo::cargo_bin("stub-git");
-        let git_path = bin_dir.join("git");
+        let git_path = bin_dir.join(GIT_FILENAME);
         link_stub_git(&stub_git_bin, &git_path);
 
         Self {
@@ -34,9 +34,21 @@ impl StubGit {
 
     /// `PATH` with the stub-git directory prepended, so anything shelling out to
     /// `git` finds the stub instead of whatever real git is installed.
+    ///
+    /// Built with `std::env::join_paths` rather than a hardcoded `:` - on
+    /// Windows the separator is `;`, and joining with the wrong one merges
+    /// our stub dir into the following PATH entry into one invalid,
+    /// nonexistent directory, silently dropping the stub from the search
+    /// entirely and letting `Command::new("git")` fall through to whatever
+    /// real git is further down PATH.
     pub fn path_env(&self) -> String {
-        let existing = std::env::var("PATH").unwrap_or_default();
-        format!("{}:{existing}", self.bin_dir.display())
+        let existing = std::env::var_os("PATH").unwrap_or_default();
+        let entries = std::iter::once(self.bin_dir.clone()).chain(std::env::split_paths(&existing));
+        std::env::join_paths(entries)
+            .expect("join PATH entries")
+            .to_str()
+            .expect("PATH is valid UTF-8")
+            .to_string()
     }
 
     /// Every call the stub recorded, oldest first, as tab-joined argv.
@@ -61,7 +73,7 @@ impl StubGit {
 
     /// Invoke the stub directly (bypassing gig) for harness-level tests.
     pub fn command(&self) -> StdCommand {
-        let mut cmd = StdCommand::new(self.bin_dir.join("git"));
+        let mut cmd = StdCommand::new(self.bin_dir.join(GIT_FILENAME));
         cmd.env("GIG_STUB_LOG", &self.log_file)
             .env("GIG_STUB_CONFIG", &self.config_file);
         cmd
@@ -92,6 +104,17 @@ impl StubGit {
         assert!(status.success(), "failed to seed stub git config (add)");
     }
 }
+
+/// The stub binary's filename within its bin dir. `gig` itself finds `git`
+/// via a bare `Command::new("git")`, resolved by the OS through `PATH` - on
+/// Windows that resolution only ever tries appending `.exe` (not the full
+/// `PATHEXT` list, and only when the name has no path component), so the
+/// file must actually be named `git.exe` there or it's silently skipped in
+/// favor of any real git further down `PATH`. Unix has no such requirement.
+#[cfg(windows)]
+const GIT_FILENAME: &str = "git.exe";
+#[cfg(not(windows))]
+const GIT_FILENAME: &str = "git";
 
 /// Links `dst` to the already-built, already-executable `src` binary.
 ///
