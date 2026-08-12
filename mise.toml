@@ -25,9 +25,9 @@ description = "Run tests"
 run = "cargo test"
 
 [tasks."test:coverage"]
-description = "Run tests with coverage"
+description = "Run tests with coverage (fails if below 90%)"
 run = """
-cargo tarpaulin --out html --output-dir target/coverage
+cargo tarpaulin --out html --output-dir target/coverage --fail-under 90
 echo "Coverage report generated: target/coverage/tarpaulin-report.html"
 """
 
@@ -35,9 +35,13 @@ echo "Coverage report generated: target/coverage/tarpaulin-report.html"
 description = "Lint the code with Clippy"
 run = "cargo clippy"
 
+[tasks."fmt:check"]
+description = "Check code formatting without modifying files"
+run = "cargo fmt --check"
+
 [tasks.ci]
-description = "Run all checks (check, lint, test)"
-depends = ["check", "lint", "test"]
+description = "Run all checks (check, lint, fmt:check, test)"
+depends = ["check", "lint", "fmt:check", "test"]
 
 [tasks.format]
 description = "Format the code"
