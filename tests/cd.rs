@@ -11,7 +11,7 @@ use std::path::Path;
 /// `root_dir/relative_path`, bypassing `get` entirely - `cd`, like `list`,
 /// only cares that a `.git` marker exists on disk.
 fn seed_fake_clone(root_dir: &Path, relative_path: &str) {
-    let repo_dir = root_dir.join(relative_path);
+    let repo_dir = common::join(root_dir, relative_path);
     fs::create_dir_all(repo_dir.join(".git")).unwrap();
 }
 

@@ -8,6 +8,22 @@ use std::process::Command as StdCommand;
 
 use assert_cmd::Command;
 
+/// Joins each `/`-delimited segment of `relative` onto `base` individually.
+/// Tests build expected destination paths from `/`-joined literals mirroring
+/// gig's own `host/owner/repo` on-disk layout; a single
+/// `base.join("host/owner/repo")` call embeds the literal `/` bytes into one
+/// path component instead of splitting on them. That's harmless for actual
+/// filesystem calls (Windows accepts `/` interchangeably with `\`), but
+/// produces a string that differs from gig's own output when compared via
+/// `.display()`: gig always joins one path segment at a time (see
+/// `src/destination.rs`), so it always prints pure native separators, never
+/// an embedded `/` on Windows.
+pub fn join(base: &Path, relative: &str) -> PathBuf {
+    relative
+        .split('/')
+        .fold(base.to_path_buf(), |acc, segment| acc.join(segment))
+}
+
 /// The stub `git` binary, installed as `git` in its own bin directory so it can be
 /// prepended onto `PATH` and intercept every invocation of the real `git`.
 pub struct StubGit {

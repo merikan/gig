@@ -11,7 +11,7 @@ use std::path::Path;
 /// `root_dir/relative_path`, bypassing `get` entirely - `list` only cares
 /// that a `.git` marker exists on disk.
 fn seed_fake_clone(root_dir: &Path, relative_path: &str) {
-    let repo_dir = root_dir.join(relative_path);
+    let repo_dir = common::join(root_dir, relative_path);
     fs::create_dir_all(repo_dir.join(".git")).unwrap();
 }
 
@@ -67,8 +67,12 @@ fn non_git_directories_and_stray_files_are_not_listed() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     seed_fake_clone(&root_dir, "github.com/owner/repo");
-    fs::create_dir_all(root_dir.join("github.com/owner/not-a-repo")).unwrap();
-    fs::write(root_dir.join("github.com/owner/stray-file.txt"), "hi").unwrap();
+    fs::create_dir_all(common::join(&root_dir, "github.com/owner/not-a-repo")).unwrap();
+    fs::write(
+        common::join(&root_dir, "github.com/owner/stray-file.txt"),
+        "hi",
+    )
+    .unwrap();
 
     harness
         .cmd()

@@ -19,7 +19,7 @@ fn without_debug_no_diagnostic_lines_are_printed() {
         .success()
         .stderr(contains("[debug]").not());
 
-    assert!(root_dir.join("github.com/owner/repo/.git").is_dir());
+    assert!(common::join(&root_dir, "github.com/owner/repo/.git").is_dir());
 }
 
 #[test]
@@ -27,7 +27,7 @@ fn debug_reveals_the_git_commands_run_during_a_clone() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
-    let destination = root_dir.join("github.com/owner/repo");
+    let destination = common::join(&root_dir, "github.com/owner/repo");
 
     harness
         .cmd()
@@ -52,7 +52,7 @@ fn debug_reveals_candidate_destination_probing_and_classification_for_an_already
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
-    let destination = root_dir.join("github.com/owner/repo");
+    let destination = common::join(&root_dir, "github.com/owner/repo");
 
     harness.cmd().args(["get", url]).assert().success();
 
@@ -124,7 +124,7 @@ fn debug_before_the_implicit_get_default_subcommand_still_resolves_the_url_not_a
         .success()
         .stderr(contains("[debug] running: git clone"));
 
-    assert!(root_dir.join("github.com/owner/repo/.git").is_dir());
+    assert!(common::join(&root_dir, "github.com/owner/repo/.git").is_dir());
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn debug_does_not_change_stdout_output() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
-    let destination = root_dir.join("github.com/owner/repo");
+    let destination = common::join(&root_dir, "github.com/owner/repo");
 
     harness
         .cmd()
@@ -163,7 +163,7 @@ fn debug_does_not_change_stdout_output() {
 fn debug_on_list_reveals_the_root_dir_scanned_and_each_repo_found() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
-    std::fs::create_dir_all(root_dir.join("github.com/owner/repo/.git")).unwrap();
+    std::fs::create_dir_all(common::join(&root_dir, "github.com/owner/repo/.git")).unwrap();
 
     harness
         .cmd()
@@ -199,7 +199,7 @@ fn debug_on_ls_alias_also_reveals_the_root_dir_scanned() {
 fn without_debug_list_prints_no_diagnostic_lines() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
-    std::fs::create_dir_all(root_dir.join("github.com/owner/repo/.git")).unwrap();
+    std::fs::create_dir_all(common::join(&root_dir, "github.com/owner/repo/.git")).unwrap();
 
     harness
         .cmd()

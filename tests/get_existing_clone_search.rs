@@ -16,7 +16,7 @@ fn a_repo_cloned_at_the_default_path_before_a_matching_category_existed_is_found
 
     // Cloned before any category rule existed - lands at the default path.
     harness.cmd().args(["get", url]).assert().success();
-    let default_destination = root_dir.join("github.com/merikan/gig");
+    let default_destination = common::join(&root_dir, "github.com/merikan/gig");
     assert_eq!(harness.stub_git.calls_starting_with("clone\t").len(), 1);
 
     // A category rule is declared after the fact that would now match this URL.
@@ -37,7 +37,7 @@ fn a_repo_cloned_at_the_default_path_before_a_matching_category_existed_is_found
 
     // ...no duplicate clone under the new category path.
     assert_eq!(harness.stub_git.calls_starting_with("clone\t").len(), 1);
-    assert!(!root_dir.join("personal/github.com/merikan/gig").exists());
+    assert!(!common::join(&root_dir, "personal/github.com/merikan/gig").exists());
 
     // --pull pulls at the original (default) location, not the category path.
     harness
@@ -59,7 +59,7 @@ fn already_cloned_notes_where_category_rules_would_place_a_fresh_clone_when_it_d
 
     // Cloned before any category rule existed - lands at the default path.
     harness.cmd().args(["get", url]).assert().success();
-    let default_destination = root_dir.join("github.com/merikan/gig");
+    let default_destination = common::join(&root_dir, "github.com/merikan/gig");
 
     // A category rule declared after the fact would now route this URL
     // elsewhere - the existing clone is still found and used, but the user
@@ -67,7 +67,7 @@ fn already_cloned_notes_where_category_rules_would_place_a_fresh_clone_when_it_d
     harness
         .stub_git
         .seed_config("gig.category.personal.pattern", r"^github\.com/merikan/");
-    let category_destination = root_dir.join("personal/github.com/merikan/gig");
+    let category_destination = common::join(&root_dir, "personal/github.com/merikan/gig");
 
     harness
         .cmd()
@@ -95,7 +95,7 @@ fn already_cloned_prints_no_note_when_it_already_lives_where_category_rules_woul
 
     // Cloned with the category rule already in place - lands under "personal".
     harness.cmd().args(["get", url]).assert().success();
-    let destination = root_dir.join("personal/github.com/merikan/gig");
+    let destination = common::join(&root_dir, "personal/github.com/merikan/gig");
 
     harness
         .cmd()
@@ -115,7 +115,7 @@ fn a_repo_cloned_at_the_default_path_is_still_found_there_after_a_category_is_de
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:merikan/gig.git";
-    let default_destination = root_dir.join("github.com/merikan/gig");
+    let default_destination = common::join(&root_dir, "github.com/merikan/gig");
 
     // Cloned before any category rule existed.
     harness.cmd().args(["get", url]).assert().success();
@@ -158,7 +158,7 @@ fn a_repo_cloned_at_the_default_path_is_still_found_there_after_a_category_is_de
         )));
 
     assert_eq!(harness.stub_git.calls_starting_with("clone\t").len(), 1);
-    assert!(!root_dir.join("personal/github.com/merikan/gig").exists());
+    assert!(!common::join(&root_dir, "personal/github.com/merikan/gig").exists());
 }
 
 #[test]
@@ -172,7 +172,7 @@ fn a_genuinely_new_url_with_no_existing_clone_anywhere_lands_at_the_resolved_pat
 
     harness.cmd().args(["get", url]).assert().success();
 
-    let destination = root_dir.join("personal/github.com/merikan/gig");
+    let destination = common::join(&root_dir, "personal/github.com/merikan/gig");
     assert_eq!(
         harness.stub_git.calls_starting_with("clone\t"),
         vec![format!("clone\t{url}\t{}", destination.display())]
@@ -206,7 +206,7 @@ fn an_invalid_regex_in_an_unrelated_category_still_aborts_up_front_even_when_the
 
     // No pull was attempted either - validation aborts before any git-ops call.
     assert!(harness.stub_git.calls_starting_with("-C\t").is_empty());
-    assert!(!root_dir.join("broken/github.com/merikan/gig").exists());
+    assert!(!common::join(&root_dir, "broken/github.com/merikan/gig").exists());
 }
 
 #[test]

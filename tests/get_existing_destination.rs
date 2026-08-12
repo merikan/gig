@@ -28,7 +28,7 @@ fn rerun_without_pull_prints_the_already_cloned_message_with_the_destination() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
-    let destination = root_dir.join("github.com/owner/repo");
+    let destination = common::join(&root_dir, "github.com/owner/repo");
 
     harness.cmd().args(["get", url]).assert().success();
 
@@ -76,7 +76,7 @@ fn pull_flag_invokes_git_pull_in_the_destination_directory_not_clone() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
-    let destination = root_dir.join("github.com/owner/repo");
+    let destination = common::join(&root_dir, "github.com/owner/repo");
 
     harness.cmd().args(["get", url]).assert().success();
     assert_eq!(harness.stub_git.calls_starting_with("clone\t").len(), 1);
@@ -99,7 +99,7 @@ fn bare_url_without_get_keyword_with_pull_on_an_already_cloned_repo_pulls() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
-    let destination = root_dir.join("github.com/owner/repo");
+    let destination = common::join(&root_dir, "github.com/owner/repo");
 
     harness.cmd().arg(url).assert().success();
     assert_eq!(harness.stub_git.calls_starting_with("clone\t").len(), 1);
@@ -118,7 +118,7 @@ fn destination_occupied_by_a_non_git_directory_errors_without_cloning() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
-    let destination = root_dir.join("github.com/owner/repo");
+    let destination = common::join(&root_dir, "github.com/owner/repo");
     fs::create_dir_all(&destination).unwrap();
     fs::write(destination.join("stray-file.txt"), "not a git repo").unwrap();
 
@@ -140,7 +140,7 @@ fn destination_occupied_by_a_stray_file_errors_without_cloning() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
-    let destination = root_dir.join("github.com/owner/repo");
+    let destination = common::join(&root_dir, "github.com/owner/repo");
     fs::create_dir_all(destination.parent().unwrap()).unwrap();
     fs::write(&destination, "not even a directory").unwrap();
 
@@ -160,7 +160,7 @@ fn destination_occupied_by_an_empty_directory_errors_without_cloning() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
-    let destination = root_dir.join("github.com/owner/repo");
+    let destination = common::join(&root_dir, "github.com/owner/repo");
     fs::create_dir_all(&destination).unwrap();
 
     harness

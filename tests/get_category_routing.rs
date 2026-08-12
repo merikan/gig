@@ -16,7 +16,7 @@ fn a_url_matching_a_declared_category_clones_under_root_dir_category() {
 
     harness.cmd().args(["get", url]).assert().success();
 
-    let destination = root_dir.join("personal/github.com/merikan/gig");
+    let destination = common::join(&root_dir, "personal/github.com/merikan/gig");
     assert_eq!(
         harness.stub_git.calls_starting_with("clone\t"),
         vec![format!("clone\t{url}\t{}", destination.display())]
@@ -35,7 +35,7 @@ fn a_url_matching_no_declared_category_falls_back_to_the_default_path() {
 
     harness.cmd().args(["get", url]).assert().success();
 
-    let destination = root_dir.join("github.com/someone-else/repo");
+    let destination = common::join(&root_dir, "github.com/someone-else/repo");
     assert_eq!(
         harness.stub_git.calls_starting_with("clone\t"),
         vec![format!("clone\t{url}\t{}", destination.display())]
@@ -59,7 +59,7 @@ fn the_first_declared_of_two_overlapping_categories_wins() {
 
     harness.cmd().args(["get", url]).assert().success();
 
-    let destination = root_dir.join("specific/github.com/merikan/gig");
+    let destination = common::join(&root_dir, "specific/github.com/merikan/gig");
     assert_eq!(
         harness.stub_git.calls_starting_with("clone\t"),
         vec![format!("clone\t{url}\t{}", destination.display())]
@@ -77,7 +77,7 @@ fn a_category_declared_with_an_empty_pattern_is_never_auto_matched() {
 
     harness.cmd().args(["get", url]).assert().success();
 
-    let destination = root_dir.join("github.com/merikan/gig");
+    let destination = common::join(&root_dir, "github.com/merikan/gig");
     assert_eq!(
         harness.stub_git.calls_starting_with("clone\t"),
         vec![format!("clone\t{url}\t{}", destination.display())]
@@ -127,12 +127,8 @@ fn a_category_declared_with_two_patterns_auto_matches_a_url_matching_either_one(
         .assert()
         .success();
 
-    assert!(
-        root_dir
-            .join("oss/github.com/rust-lang/regex/.git")
-            .is_dir()
-    );
-    assert!(root_dir.join("oss/github.com/tokio-rs/tokio/.git").is_dir());
+    assert!(common::join(&root_dir, "oss/github.com/rust-lang/regex/.git").is_dir());
+    assert!(common::join(&root_dir, "oss/github.com/tokio-rs/tokio/.git").is_dir());
 }
 
 #[test]
@@ -166,12 +162,8 @@ fn a_pattern_appended_via_config_category_add_routes_alongside_the_original() {
         .assert()
         .success();
 
-    assert!(
-        root_dir
-            .join("oss/github.com/rust-lang/regex/.git")
-            .is_dir()
-    );
-    assert!(root_dir.join("oss/github.com/tokio-rs/tokio/.git").is_dir());
+    assert!(common::join(&root_dir, "oss/github.com/rust-lang/regex/.git").is_dir());
+    assert!(common::join(&root_dir, "oss/github.com/tokio-rs/tokio/.git").is_dir());
 }
 
 #[test]
@@ -212,7 +204,7 @@ fn a_url_matching_no_category_routes_to_the_declared_default_category() {
 
     harness.cmd().args(["get", url]).assert().success();
 
-    let destination = root_dir.join("personal/github.com/someone-else/repo");
+    let destination = common::join(&root_dir, "personal/github.com/someone-else/repo");
     assert_eq!(
         harness.stub_git.calls_starting_with("clone\t"),
         vec![format!("clone\t{url}\t{}", destination.display())]
@@ -236,7 +228,7 @@ fn a_url_matching_a_declared_categorys_pattern_still_wins_over_the_default() {
 
     harness.cmd().args(["get", url]).assert().success();
 
-    let destination = root_dir.join("work/gitlab.company.com/team/service");
+    let destination = common::join(&root_dir, "work/gitlab.company.com/team/service");
     assert_eq!(
         harness.stub_git.calls_starting_with("clone\t"),
         vec![format!("clone\t{url}\t{}", destination.display())]
@@ -264,7 +256,7 @@ fn the_category_flag_still_overrides_the_declared_default() {
         .assert()
         .success();
 
-    let destination = root_dir.join("work/github.com/someone-else/repo");
+    let destination = common::join(&root_dir, "work/github.com/someone-else/repo");
     assert_eq!(
         harness.stub_git.calls_starting_with("clone\t"),
         vec![format!("clone\t{url}\t{}", destination.display())]
@@ -295,16 +287,8 @@ fn a_default_category_with_its_own_patterns_matches_them_normally_and_still_catc
         .assert()
         .success();
 
-    assert!(
-        root_dir
-            .join("personal/github.com/merikan/gig/.git")
-            .is_dir()
-    );
-    assert!(
-        root_dir
-            .join("personal/github.com/someone-else/repo/.git")
-            .is_dir()
-    );
+    assert!(common::join(&root_dir, "personal/github.com/merikan/gig/.git").is_dir());
+    assert!(common::join(&root_dir, "personal/github.com/someone-else/repo/.git").is_dir());
 }
 
 #[test]

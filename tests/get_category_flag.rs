@@ -24,7 +24,7 @@ fn category_flag_overrides_automatic_matching_for_a_declared_category() {
         .assert()
         .success();
 
-    let destination = root_dir.join("work/github.com/merikan/gig");
+    let destination = common::join(&root_dir, "work/github.com/merikan/gig");
     assert_eq!(
         harness.stub_git.calls_starting_with("clone\t"),
         vec![format!("clone\t{url}\t{}", destination.display())]
@@ -63,7 +63,7 @@ fn category_flag_is_the_only_way_to_reach_a_flag_only_category() {
         .assert()
         .success();
 
-    let destination = root_dir.join("oneoff/github.com/merikan/gig");
+    let destination = common::join(&root_dir, "oneoff/github.com/merikan/gig");
     assert_eq!(
         harness.stub_git.calls_starting_with("clone\t"),
         vec![format!("clone\t{url}\t{}", destination.display())]

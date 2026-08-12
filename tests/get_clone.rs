@@ -25,7 +25,11 @@ fn scp_style_ssh_url_clones_into_host_owner_repo() {
 
     harness.cmd().args(["get", url]).assert().success();
 
-    assert_cloned(&harness, url, &root_dir.join("github.com/owner/repo"));
+    assert_cloned(
+        &harness,
+        url,
+        &common::join(&root_dir, "github.com/owner/repo"),
+    );
 }
 
 #[test]
@@ -33,7 +37,7 @@ fn successful_clone_prints_a_progress_message_then_a_confirmation() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
-    let destination = root_dir.join("github.com/owner/repo");
+    let destination = common::join(&root_dir, "github.com/owner/repo");
 
     harness.cmd().args(["get", url]).assert().success().stdout(
         contains(format!("Cloning {url} into {}...", destination.display()))
@@ -52,7 +56,7 @@ fn https_url_with_nested_subgroups_clones_into_the_full_nested_path() {
     assert_cloned(
         &harness,
         url,
-        &root_dir.join("gitlab.com/group/subgroup/repo"),
+        &common::join(&root_dir, "gitlab.com/group/subgroup/repo"),
     );
 }
 
@@ -64,7 +68,11 @@ fn sourcehut_tilde_user_url_clones_into_the_tilde_prefixed_path() {
 
     harness.cmd().args(["get", url]).assert().success();
 
-    assert_cloned(&harness, url, &root_dir.join("git.sr.ht/~user/repo"));
+    assert_cloned(
+        &harness,
+        url,
+        &common::join(&root_dir, "git.sr.ht/~user/repo"),
+    );
 }
 
 #[test]
@@ -78,7 +86,7 @@ fn tilde_prefixed_root_dir_expands_to_the_home_directory() {
     assert_cloned(
         &harness,
         url,
-        &harness.home_dir.join("gig-root/github.com/owner/repo"),
+        &common::join(&harness.home_dir, "gig-root/github.com/owner/repo"),
     );
 }
 
@@ -90,7 +98,11 @@ fn bare_url_without_get_keyword_behaves_like_explicit_get() {
 
     harness.cmd().arg(url).assert().success();
 
-    assert_cloned(&harness, url, &root_dir.join("github.com/owner/repo"));
+    assert_cloned(
+        &harness,
+        url,
+        &common::join(&root_dir, "github.com/owner/repo"),
+    );
 }
 
 #[test]
@@ -98,7 +110,7 @@ fn clone_failure_reports_the_exit_code_alongside_gits_own_inherited_error() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
     let url = "git@github.com:owner/repo.git";
-    let destination = root_dir.join("github.com/owner/repo");
+    let destination = common::join(&root_dir, "github.com/owner/repo");
 
     harness
         .cmd()
