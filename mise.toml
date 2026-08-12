@@ -2,7 +2,7 @@
 _.path = ["./target/debug"]
 
 [tools]
-rust = { version = "latest", components = "rust-analyzer" }
+rust = { version = "latest", components = "rust-analyzer,clippy,rustfmt" }
 "cargo:cargo-tarpaulin" = "latest"
 actionlint = "latest"
 tombi = "latest"
