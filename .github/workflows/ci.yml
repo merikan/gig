@@ -13,17 +13,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Linting & Formatting (Static Analysis)
   lint:
+    name: 🧹 Code Quality & Linting
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v4
-        with:
-          install: true
+        env:
+          MISE_ENABLE_TOOLS: "rust,actionlint,tombi"
       - run: mise run lint
       - run: mise run fmt:check
 
+  # Standard Test Suite Execution (Fast Feedback)
   build-and-test:
+    name: 🧪 Build and Test
     strategy:
       fail-fast: false
       matrix:
@@ -42,8 +46,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v4
-        with:
-          install_args: rust
+        env:
+          MISE_ENABLE_TOOLS: "rust"
       - run: rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
@@ -51,11 +55,15 @@ jobs:
       - run: cargo build --target ${{ matrix.target }}
       - run: cargo test --target ${{ matrix.target }}
 
+  # Code Coverage Analysis
   coverage:
+    name: 📊 Code Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v4
+        env:
+          MISE_ENABLE_TOOLS: "rust,cargo:cargo-tarpaulin"
       - uses: Swatinem/rust-cache@v2
       - run: mise run test:coverage
       - uses: actions/upload-artifact@v7
