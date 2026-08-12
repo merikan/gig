@@ -499,7 +499,7 @@ fn run_list() -> anyhow::Result<()> {
     let root_dir = root_dir()?;
     debug_log::log(format!("listing repos under {}", root_dir.display()));
     for repo in repo_walk::find_repos(&root_dir)? {
-        println!("{}", repo.display());
+        println!("{}", repo_walk::display(&repo));
     }
     Ok(())
 }
@@ -536,10 +536,7 @@ fn run_cd(args: &CdArgs) -> anyhow::Result<()> {
         anyhow::bail!("gig cd requires an interactive terminal (stderr is not a tty)");
     }
 
-    let labels: Vec<String> = repos
-        .iter()
-        .map(|repo| repo.display().to_string())
-        .collect();
+    let labels: Vec<String> = repos.iter().map(|repo| repo_walk::display(repo)).collect();
     let selection = FuzzySelect::new()
         .with_prompt("Select a repo")
         .items(&labels)

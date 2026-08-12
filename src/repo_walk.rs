@@ -8,6 +8,21 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Renders a repo-relative path (one of `find_repos`'s results) as a
+/// `host/owner/repo` identifier - forward-slash-joined on every platform,
+/// matching the convention `gig config category` patterns are written
+/// against (see `CategoryArgs`'s docs in `cli.rs`) and the README's
+/// `host/owner/repo` framing. Deliberately not `Path::display`, which on
+/// Windows would render native `\` separators instead - see
+/// `docs/adr/0008-forward-slash-repo-identifiers-even-on-windows.md`.
+pub fn display(relative: &Path) -> String {
+    relative
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
 /// Every already-cloned repo under `root_dir`, as paths relative to it,
 /// sorted. A `root_dir` that doesn't exist on disk yet (nothing cloned)
 /// yields an empty list rather than an error. Once a directory is found to
@@ -27,7 +42,7 @@ fn walk(root_dir: &Path, dir: &Path, repos: &mut Vec<PathBuf>) -> Result<()> {
         let relative = dir
             .strip_prefix(root_dir)
             .with_context(|| format!("{} is not under {}", dir.display(), root_dir.display()))?;
-        debug_log::log(format!("found repo: {}", relative.display()));
+        debug_log::log(format!("found repo: {}", display(relative)));
         repos.push(relative.to_path_buf());
         return Ok(());
     }
