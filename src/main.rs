@@ -9,6 +9,7 @@ mod git_ops;
 mod repo_walk;
 mod shellenv;
 mod url_parser;
+mod version;
 
 use anyhow::Context;
 use clap::{CommandFactory, Parser};
@@ -40,6 +41,10 @@ fn main() -> anyhow::Result<()> {
             run_shellenv(&args);
             Ok(())
         }
+        Commands::Version => {
+            println!("gig {}", version::string());
+            Ok(())
+        }
     }
 }
 
@@ -58,6 +63,7 @@ fn normalize_args(mut args: Vec<String>) -> Vec<String> {
         "cd",
         "completion",
         "shellenv",
+        "version",
         "help",
     ];
     const HELP_FLAGS: &[&str] = &["-h", "--help", "-V", "--version"];

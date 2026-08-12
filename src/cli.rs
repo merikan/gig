@@ -3,7 +3,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum, ValueHint};
 #[derive(Debug, Parser)]
 #[command(
     name = "gig",
-    version,
+    version = crate::version::static_str(),
     about = "Clone repos into a predictable host/owner/repo workspace"
 )]
 pub struct Cli {
@@ -35,6 +35,9 @@ pub enum Commands {
     Completion(CompletionArgs),
     /// Output shell function for auto-cd
     Shellenv(ShellenvArgs),
+    /// Print the current version, including the git commit it was built
+    /// from - same output as `-V`/`--version`
+    Version,
 }
 
 #[derive(Debug, Args)]

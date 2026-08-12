@@ -175,9 +175,14 @@ echo 'source <(gig completion zsh)' >> ~/.zshrc
 echo 'gig completion fish | source' >> ~/.config/fish/config.fish
 ```
 
+### `gig version`
+
+Print the current version, including the git commit it was built from, e.g. `gig 0.1.0 (a1b2c3d)`. Same output as `gig --version`/`gig -V`.
+
 ### Global flags
 
 - `--debug` - print diagnostic detail to stderr: which git commands ran, how category routing decided a destination, which candidate destinations were checked. Works on any subcommand, e.g. `gig get <url> --debug`.
+- `--version`/`-V` - print the current version and exit; same as `gig version`.
 
 ## Category routing
 
