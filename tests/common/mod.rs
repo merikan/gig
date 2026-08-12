@@ -23,8 +23,7 @@ impl StubGit {
 
         let stub_git_bin = assert_cmd::cargo::cargo_bin("stub-git");
         let git_path = bin_dir.join("git");
-        fs::copy(&stub_git_bin, &git_path).expect("copy stub-git binary");
-        set_executable(&git_path);
+        link_stub_git(&stub_git_bin, &git_path);
 
         Self {
             bin_dir,
@@ -94,18 +93,22 @@ impl StubGit {
     }
 }
 
+/// Links `dst` to the already-built, already-executable `src` binary.
+///
+/// On Unix this symlinks rather than copies: copying bytes and then exec'ing
+/// the destination immediately can transiently fail with ETXTBSY ("Text file
+/// busy") - observed on GitHub Actions' overlayfs - because the fresh write's
+/// close hasn't fully settled before the exec. Symlinking to the pre-existing,
+/// already-stable binary sidesteps that race instead of retrying around it.
 #[cfg(unix)]
-fn set_executable(path: &Path) {
-    use std::os::unix::fs::PermissionsExt;
-    let mut perms = fs::metadata(path)
-        .expect("stat stub-git copy")
-        .permissions();
-    perms.set_mode(0o755);
-    fs::set_permissions(path, perms).expect("chmod stub-git copy");
+fn link_stub_git(src: &Path, dst: &Path) {
+    std::os::unix::fs::symlink(src, dst).expect("symlink stub-git binary");
 }
 
 #[cfg(not(unix))]
-fn set_executable(_path: &Path) {}
+fn link_stub_git(src: &Path, dst: &Path) {
+    fs::copy(src, dst).expect("copy stub-git binary");
+}
 
 /// A `gig` invocation wired to the stub-git harness with an isolated
 /// HOME/working directory - no test ever touches the developer's real gitconfig.
