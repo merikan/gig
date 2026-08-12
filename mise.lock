@@ -55,7 +55,7 @@ version = "1.97.1"
 backend = "core:rust"
 
 [tools.rust.options]
-components = "rust-analyzer"
+components = "clippy,rust-analyzer,rustfmt"
 
 [[tools.tombi]]
 version = "1.2.7"
