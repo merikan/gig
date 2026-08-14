@@ -87,6 +87,15 @@ pub struct GetArgs {
     pub pull: bool,
     #[arg(long)]
     pub category: Option<String>,
+    /// Auto-cd into the destination after this invocation, overriding
+    /// `gig.autocd-into` - only takes effect when `gig shellenv`'s wrapper
+    /// function is active. Mutually exclusive with `--no-cd`.
+    #[arg(long = "cd")]
+    pub cd: bool,
+    /// Skip auto-cd into the destination after this invocation, overriding
+    /// `gig.autocd-into`. Mutually exclusive with `--cd`.
+    #[arg(long = "no-cd")]
+    pub no_cd: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -98,6 +107,11 @@ pub enum ConfigCommand {
     },
     /// View, set, or list category routing rules
     Category(CategoryArgs),
+    /// View or set whether `get` auto-cds into the destination after a
+    /// successful clone/pull (only takes effect when `gig shellenv`'s
+    /// wrapper function is active). Accepts exactly `true` or `false`;
+    /// defaults to `true` when unset.
+    AutocdInto { value: Option<String> },
 }
 
 /// The forms `config category` accepts, dispatched by which fields are

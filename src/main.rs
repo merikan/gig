@@ -23,6 +23,7 @@ use std::path::{Path, PathBuf};
 const ROOT_DIR_KEY: &str = "gig.root-dir";
 const ROOT_DIR_UNSET_MESSAGE: &str =
     "gig.root-dir is not set. Run `gig config root-dir <path>` to set it.";
+const AUTOCD_INTO_KEY: &str = "gig.autocd-into";
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse_from(normalize_args(std::env::args().collect()));
@@ -86,6 +87,11 @@ fn normalize_args(mut args: Vec<String>) -> Vec<String> {
 }
 
 fn run_get(args: &GetArgs) -> anyhow::Result<()> {
+    if args.cd && args.no_cd {
+        anyhow::bail!("--cd and --no-cd are mutually exclusive");
+    }
+    let autocd = effective_autocd(args)?;
+
     let root_dir = root_dir()?;
     let parsed = url_parser::parse(&args.url)?;
     let categories = category_config::list()?;
@@ -116,10 +122,15 @@ fn run_get(args: &GetArgs) -> anyhow::Result<()> {
     match state {
         // No gig message here by design: git's own pull output (diffstat,
         // "Already up to date.", ...) is what the user should see instead.
-        DestinationState::AlreadyCloned if args.pull => git_ops::pull(&destination),
+        DestinationState::AlreadyCloned if args.pull => {
+            git_ops::pull(&destination)?;
+            maybe_write_cd_file(&destination, autocd);
+            Ok(())
+        }
         DestinationState::AlreadyCloned => {
             println!("Already cloned at {}", destination.display());
             note_if_category_resolution_differs(&destination, &destination_root, &parsed);
+            maybe_write_cd_file(&destination, autocd);
             Ok(())
         }
         DestinationState::Occupied => anyhow::bail!(
@@ -130,7 +141,73 @@ fn run_get(args: &GetArgs) -> anyhow::Result<()> {
             println!("Cloning {} into {}...", args.url, destination.display());
             git_ops::clone(&args.url, &destination)?;
             println!("Cloned into {}", destination.display());
+            maybe_write_cd_file(&destination, autocd);
             Ok(())
+        }
+    }
+}
+
+/// The environment variable `gig shellenv`'s wrapper function sets, on every
+/// invocation, to the path of a tmp file it will read back and `cd` into -
+/// see `docs/adr/0009-sidecar-file-for-gets-auto-cd.md`. Absent when the
+/// wrapper isn't active, in which case [`maybe_write_cd_file`] is a no-op.
+const CD_FILE_ENV: &str = "GIG_CD_FILE";
+
+/// `--cd` / `--no-cd` / `gig.autocd-into` precedence: an explicit flag on
+/// this invocation always wins over the config; absent either flag, the
+/// config value applies (enabled by default when unset). The caller checks
+/// `--cd`/`--no-cd` mutual exclusion before this runs.
+fn effective_autocd(args: &GetArgs) -> anyhow::Result<bool> {
+    if args.cd {
+        Ok(true)
+    } else if args.no_cd {
+        Ok(false)
+    } else {
+        autocd_into_config()
+    }
+}
+
+/// Hands `destination` back to `gig shellenv`'s wrapper function for
+/// auto-cd, via a sidecar file rather than stdout: `git clone`/`git pull`
+/// inherit stdio directly (see
+/// `docs/adr/0001-inherit-stdio-for-clone-and-pull.md`), so stdout has to
+/// stay free for their own live output (notably `--pull`'s diffstat) instead
+/// of carrying the destination path the way `gig cd`'s stdout-only contract
+/// does (`docs/adr/0005-...`). A no-op when `autocd` is disabled or the
+/// wrapper isn't active (`GIG_CD_FILE` unset). The clone/pull this is called
+/// after already succeeded, so a write failure here is non-fatal - just a
+/// warning on stderr rather than failing the whole invocation.
+fn maybe_write_cd_file(destination: &Path, autocd: bool) {
+    if !autocd {
+        return;
+    }
+    let Some(cd_file) = std::env::var_os(CD_FILE_ENV) else {
+        return;
+    };
+    if let Err(err) = std::fs::write(&cd_file, destination.to_string_lossy().as_bytes()) {
+        eprintln!(
+            "warning: failed to write auto-cd file {}: {err}",
+            Path::new(&cd_file).display()
+        );
+    }
+}
+
+/// The configured `gig.autocd-into`, defaulting to enabled when unset -
+/// unlike `root-dir`, this setting has a sensible default, so there's no
+/// "unconfigured" error state.
+fn autocd_into_config() -> anyhow::Result<bool> {
+    git_config::get(AUTOCD_INTO_KEY)?.map_or_else(|| Ok(true), |raw| parse_autocd_bool(&raw))
+}
+
+/// Strict `true`/`false` only, matching the exact spelling
+/// `gig config autocd-into <value>` itself accepts - not git's looser
+/// boolean parsing (`yes`/`no`/`1`/`0`/...).
+fn parse_autocd_bool(raw: &str) -> anyhow::Result<bool> {
+    match raw {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        other => {
+            anyhow::bail!("invalid value '{other}' for gig.autocd-into - must be 'true' or 'false'")
         }
     }
 }
@@ -317,6 +394,21 @@ fn run_config(command: ConfigCommand) -> anyhow::Result<()> {
             None => anyhow::bail!(ROOT_DIR_UNSET_MESSAGE),
         },
         ConfigCommand::Category(args) => run_config_category(args),
+        ConfigCommand::AutocdInto { value: Some(value) } => {
+            parse_autocd_bool(&value)?;
+            git_config::set_global(AUTOCD_INTO_KEY, &value)
+        }
+        ConfigCommand::AutocdInto { value: None } => {
+            println!(
+                "{}",
+                if autocd_into_config()? {
+                    "true"
+                } else {
+                    "false"
+                }
+            );
+            Ok(())
+        }
     }
 }
 
