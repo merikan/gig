@@ -39,15 +39,15 @@ const BASH_ZSH: &str = r#"gig() {
             return 1
         fi
     else
-        local cd_file status
+        local cd_file stat
         cd_file=$(mktemp)
         GIG_CD_FILE="$cd_file" command gig "$@"
-        status=$?
-        if [ $status -eq 0 ] && [ -s "$cd_file" ]; then
+        stat=$?
+        if [ $stat -eq 0 ] && [ -s "$cd_file" ]; then
             cd "$(cat "$cd_file")"
         fi
         rm -f "$cd_file"
-        return $status
+        return $stat
     fi
 }
 "#;
