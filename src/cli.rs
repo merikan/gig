@@ -85,7 +85,7 @@ pub struct GetArgs {
     pub url: String,
     #[arg(long)]
     pub pull: bool,
-    #[arg(long)]
+    #[arg(long, short = 'c')]
     pub category: Option<String>,
     /// Auto-cd into the destination after this invocation, overriding
     /// `gig.autocd-into` - only takes effect when `gig shellenv`'s wrapper

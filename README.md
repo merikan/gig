@@ -76,7 +76,7 @@ Behavior depends on what's already at the destination:
 Flags:
 
 - `--pull` - if already cloned, pull instead of no-op.
-- `--category <name>` - force this clone into a specific declared category's destination, overriding automatic pattern routing (see [Category routing](#category-routing) below).
+- `--category <name>` (`-c`) - force this clone into a specific declared category's destination, overriding automatic pattern routing (see [Category routing](#category-routing) below).
 - `--cd` - auto-cd into the destination after this invocation, overriding `gig.autocd-into` (see [Auto-cd](#auto-cd) below). Mutually exclusive with `--no-cd`.
 - `--no-cd` - skip auto-cd after this invocation, overriding `gig.autocd-into`. Mutually exclusive with `--cd`.
 

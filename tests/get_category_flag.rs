@@ -49,6 +49,33 @@ fn category_flag_with_an_undeclared_name_errors_and_attempts_no_clone() {
 }
 
 #[test]
+fn category_short_flag_behaves_like_the_long_form() {
+    let harness = GigTest::new();
+    let root_dir = harness.seed_root_dir();
+    // "personal" would auto-match this URL - the flag must win anyway.
+    harness
+        .stub_git
+        .seed_config("gig.category.personal.pattern", r"^github\.com/merikan/");
+    harness
+        .stub_git
+        .seed_config("gig.category.work.pattern", "");
+    let url = "git@github.com:merikan/gig.git";
+
+    harness
+        .cmd()
+        .args(["get", url, "-c", "work"])
+        .assert()
+        .success();
+
+    let destination = common::join(&root_dir, "work/github.com/merikan/gig");
+    assert_eq!(
+        harness.stub_git.calls_starting_with("clone\t"),
+        vec![format!("clone\t{url}\t{}", destination.display())]
+    );
+    assert!(destination.join(".git").is_dir());
+}
+
+#[test]
 fn category_flag_is_the_only_way_to_reach_a_flag_only_category() {
     let harness = GigTest::new();
     let root_dir = harness.seed_root_dir();
