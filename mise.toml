@@ -10,6 +10,9 @@ tombi = "latest"
 [settings]
 lockfile = true
 
+[task_config]
+includes = ["etc/mise/tasks/"]
+
 [tasks.build]
 description = "Build the project"
 run = "cargo build"
