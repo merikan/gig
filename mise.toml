@@ -6,10 +6,10 @@ rust = { version = "latest", components = "rust-analyzer,clippy,rustfmt" }
 "cargo:cargo-tarpaulin" = "latest"
 actionlint = "latest"
 tombi = "latest"
+git-cliff = "latest"
 
 [settings]
 lockfile = true
 
 [task_config]
-includes = ["etc/mise/tasks.toml","etc/mise/tasks/"]
-
+includes = ["etc/mise/tasks.toml", "etc/mise/tasks/"]
