@@ -56,7 +56,7 @@ run = "cargo doc --open"
 
 ["mise:install"]
 description = "Install tools"
-run = "mise install --local"
+run = "mise install"
 
 ["mise:upgrade"]
 description = "Upgrade tools version"
