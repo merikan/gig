@@ -1,0 +1,63 @@
+
+[build]
+description = "Build the project"
+run = "cargo build"
+
+["build:release"]
+description = "Build the project with optimizations"
+run = "cargo build --release"
+
+[run]
+description = "Run the application"
+run = "cargo run"
+
+[test]
+description = "Run tests"
+run = "cargo test"
+
+["test:coverage"]
+description = "Run tests with coverage (fails if below 90%)"
+run = """
+cargo tarpaulin --out html --output-dir target/coverage --fail-under 90
+echo "Coverage report generated: target/coverage/tarpaulin-report.html"
+"""
+
+[lint]
+description = "Lint the code with Clippy"
+run = """
+echo "running clippy"; cargo clippy
+echo "running tombi"; tombi lint mise.toml
+echo "running actionlint"; actionlint .github/workflows/*.yml
+"""
+
+[fmt]
+description = "Format the code"
+run = "cargo fmt"
+
+["fmt:check"]
+description = "Check code formatting without modifying files"
+run = "cargo fmt --check"
+
+[ci]
+description = "Run all checks (check, lint, fmt:check, test)"
+depends = ["check", "lint", "fmt:check", "test"]
+
+[check]
+description = "Check the project for errors"
+run = "cargo check"
+
+[clean]
+description = "Clean build artifacts"
+run = "cargo clean"
+
+[docs]
+description = "Generate and open documentation"
+run = "cargo doc --open"
+
+["mise:install"]
+description = "Install tools"
+run = "mise install --local"
+
+["mise:upgrade"]
+description = "Upgrade tools version"
+run = "mise upgrade --bump --local"
