@@ -7,9 +7,14 @@ rust = { version = "latest", components = "rust-analyzer,clippy,rustfmt" }
 actionlint = "latest"
 tombi = "latest"
 git-cliff = "latest"
+shellcheck = "latest"
+shfmt = "latest"
 
 [settings]
 lockfile = true
 
 [task_config]
 includes = ["etc/mise/tasks.toml", "etc/mise/tasks/"]
+
+
+

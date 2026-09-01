@@ -1,4 +1,8 @@
 
+[clean]
+description = "Clean build artifacts"
+run = "cargo clean"
+
 [build]
 description = "Build the project"
 run = "cargo build"
@@ -23,32 +27,38 @@ echo "Coverage report generated: target/coverage/tarpaulin-report.html"
 """
 
 [lint]
-description = "Lint the code with Clippy"
+description = "run all linting"
 run = """
 echo "running clippy"; cargo clippy
 echo "running tombi"; tombi lint mise.toml
+echo "running shellcheck"; shellcheck $(git ls-files '*.sh')
 echo "running actionlint"; actionlint .github/workflows/*.yml
 """
 
 [fmt]
 description = "Format the code"
-run = "cargo fmt"
+run = """
+  echo "running cargo fmt"; cargo fmt
+  echo "running shfmt"; shfmt -w $(git ls-files '*.sh')
+"""
 
 ["fmt:check"]
 description = "Check code formatting without modifying files"
-run = "cargo fmt --check"
-
-[ci]
-description = "Run all checks (check, lint, fmt:check, test)"
-depends = ["check", "lint", "fmt:check", "test"]
+run = """
+  echo "running cargo fmt --check"; cargo fmt --check
+  echo "running shfmt"; shfmt --diff .
+"""
 
 [check]
 description = "Check the project for errors"
-run = "cargo check"
+depends = ["lint", "fmt:check"]
+run = """
+  echo "running cargo check"; cargo check
+"""
 
-[clean]
-description = "Clean build artifacts"
-run = "cargo clean"
+[ci]
+description = "Run all checks (linting, formatting and tests)"
+depends = ["check", "test"]
 
 [docs]
 description = "Generate and open documentation"
