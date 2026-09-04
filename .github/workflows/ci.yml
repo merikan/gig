@@ -15,19 +15,21 @@ concurrency:
 jobs:
   # Linting & Formatting (Static Analysis)
   lint:
-    name: 🧹 Code Quality & Linting
+    name: 🧹 Linting and Formating
     runs-on: ubuntu-latest
+    env:
+      MISE_ENABLE_TOOLS: "rust,actionlint,tombi,shellcheck,shfmt"
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v4
-        env:
-          MISE_ENABLE_TOOLS: "rust,actionlint,tombi"
-      - run: mise run lint
       - run: mise run fmt:check
+      - run: mise run lint
 
   # Standard Test Suite Execution (Fast Feedback)
   build-and-test:
     name: 🧪 Build and Test
+    env:
+      MISE_ENABLE_TOOLS: "rust"
     strategy:
       fail-fast: false
       matrix:
@@ -46,8 +48,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v4
-        env:
-          MISE_ENABLE_TOOLS: "rust"
       - run: rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
