@@ -1,17 +1,29 @@
-# gig
+<div align="center">
+  <p align="center">
+    <img src="docs/assets/logo.png" alt="gig logo Image" style="width: 100%; height: auto;">
+  </p>
+</div>
 
-A Rust CLI that clones repos into a predictable `root-dir/host/owner/repo` workspace, and recognizes repos already cloned there instead of re-cloning or clobbering them.
+# What is gig?
 
-If you've ever ended up with three different local copies of the same repo because you `git clone`d it from three different directories, `gig` is for that. Give it a `root-dir` once, and every repo you fetch through it lands at a deterministic path derived from its URL - `github.com/owner/repo`, `gitlab.company.com/team/service`, and so on - so "do I already have this cloned?" always has one obvious answer.
+>`gig`- short for **git get** 
+
+`gig` is a lightweight command-line tool designed to quickly clone and manage Git repositories.
+
+It clones repos into a predictable `root-dir/host/owner/repo` workspace, and recognizes repos already cloned there instead of re-cloning or clobbering them.
+
+If you've ever ended up with three different local copies of the same repo because you `git clone`d it from three different directories, `gig` is for that. 
+Give it a `root-dir` once, and every repo you fetch through it lands at a deterministic path derived from its URL.
 
 Authentication is fully delegated to your system's existing `ssh-agent`/git credential setup - `gig` shells out to your own `git` binary for the actual clone/pull, it doesn't reimplement git.
 
 ## Features
 
 - **Predictable clone paths** - `gig get <url>` always resolves to `root-dir/host/owner/repo`, regardless of your current directory.
-- **Clone-or-update, never clobber** - re-running `gig get` on an already-cloned repo no-ops (or pulls, with `--pull`); it refuses to touch a destination that exists but isn't a clone.
+- **Clone-or-update, never clobber** - re-running `gig get` on an already-cloned repo (or pulls, with `--pull`), it refuses to touch a destination that exists but isn't a clone.
 - **Auto-cd** - with `gig shellenv` set up, `gig get` `cd`s you into the destination on success, whether it was freshly cloned or already there - configurable via `gig config autocd-into`.
-- **Category routing** - declare regex rules that route clones under a different subtree (e.g. work repos under `~/root-dir/work`,  oss ones under `~/root-dir/oss`) instead of the default `root-dir` root, with an optional default category to catch anything unmatched.
+- **Category routing** - declare regex rules that route clones under a different subtree (e.g. work repos under `~/root-dir/work`, oss ones under `~/root-dir/oss`) instead of the default `root-dir` root, with an optional default category to catch anything unmatched.
+- **Configuration** - all configuration is stored in your global git config (`gig.*`), not a separate config file.
 - **Interactive cd** - `gig cd` opens a fuzzy-searchable picker of every repo already cloned under `root-dir` and, with `gig shellenv` set up, `cd`s into the one you pick.
 - **Shell completion** - structural completion (subcommand/flag names) for bash, zsh, and fish.
 
@@ -67,10 +79,10 @@ gig https://gitlab.com/group/subgroup/repo   # same thing, shorthand
 
 Behavior depends on what's already at the destination:
 
-| Destination state | Default | With `--pull` |
-|---|---|---|
-| Nothing there | clones | clones |
-| Already cloned (has `.git`) | no-op | pulls |
+| Destination state              | Default                     | With `--pull`               |
+| ------------------------------ | --------------------------- | --------------------------- |
+| Nothing there                  | clones                      | clones                      |
+| Already cloned (has `.git`)    | no-op                       | pulls                       |
 | Occupied (exists, not a clone) | errors, refuses to touch it | errors, refuses to touch it |
 
 Flags:
@@ -200,7 +212,7 @@ Print the current version, including the git commit it was built from, e.g. `gig
 
 By default, every clone lands under `root-dir/host/owner/repo`. Categories let you declare regex rules that route matching repos under a different subtree instead - handy for separating work repos from personal ones, or grouping everything from one self-hosted GitLab under its own folder.
 
-A category is a name plus one or more RE2-syntax patterns, matched against the `host/owner/repo` path a repo *would* be cloned to (not its URL). When you `gig get` a URL, `gig` checks it against every declared category's patterns; a match routes the clone under `root-dir/<category-name>/...` instead of the default path.
+A category is a name plus one or more RE2-syntax patterns, matched against the `host/owner/repo` path a repo _would_ be cloned to (not its URL). When you `gig get` a URL, `gig` checks it against every declared category's patterns; a match routes the clone under `root-dir/<category-name>/...` instead of the default path.
 
 Example - route everything under a work GitLab into its own subtree:
 
@@ -230,9 +242,9 @@ gig get https://github.com/some/unmatched-repo
 # no category pattern matched -> root-dir/personal/github.com/some/unmatched-repo
 ```
 
-`--default` is independent of patterns - a category can carry real patterns *and* be the default, matching normally by pattern first and only catching leftovers when nothing (including itself) matched. Only one category can be default at a time; marking a new one auto-demotes the previous, with a warning. `--no-default` clears the flag again (patterns untouched, safe to run even if the category wasn't already default).
+`--default` is independent of patterns - a category can carry real patterns _and_ be the default, matching normally by pattern first and only catching leftovers when nothing (including itself) matched. Only one category can be default at a time; marking a new one auto-demotes the previous, with a warning. `--no-default` clears the flag again (patterns untouched, safe to run even if the category wasn't already default).
 
-This replaces the older trick of declaring a catch-all pattern (e.g. `.*`) as the *last* category, which only worked because matching is first-match-in-declaration-order - reordering categories later would silently break it. `--default` isn't affected by declaration order.
+This replaces the older trick of declaring a catch-all pattern (e.g. `.*`) as the _last_ category, which only worked because matching is first-match-in-declaration-order - reordering categories later would silently break it. `--default` isn't affected by declaration order.
 
 `gig` never moves a repo that's already cloned somewhere else just because you add or change a category rule afterward - it searches existing clone locations non-destructively before deciding where a `get` lands.
 
