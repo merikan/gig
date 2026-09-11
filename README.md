@@ -6,13 +6,13 @@
 
 # What is gig?
 
->`gig`- short for **git get** 
+> `gig`- short for **git get**
 
 `gig` is a lightweight command-line tool designed to quickly clone and manage Git repositories.
 
 It clones repos into a predictable `root-dir/host/owner/repo` workspace, and recognizes repos already cloned there instead of re-cloning or clobbering them.
 
-If you've ever ended up with three different local copies of the same repo because you `git clone`d it from three different directories, `gig` is for that. 
+If you've ever ended up with three different local copies of the same repo because you `git clone`d it from three different directories, `gig` is for that.
 Give it a `root-dir` once, and every repo you fetch through it lands at a deterministic path derived from its URL.
 
 Authentication is fully delegated to your system's existing `ssh-agent`/git credential setup - `gig` shells out to your own `git` binary for the actual clone/pull, it doesn't reimplement git.
@@ -27,7 +27,9 @@ Authentication is fully delegated to your system's existing `ssh-agent`/git cred
 - **Interactive cd** - `gig cd` opens a fuzzy-searchable picker of every repo already cloned under `root-dir` and, with `gig shellenv` set up, `cd`s into the one you pick.
 - **Shell completion** - structural completion (subcommand/flag names) for bash, zsh, and fish.
 
-## Installation
+## Getting started
+
+### 1. Install gig
 
 There's no published crate or release binary yet - build from source with [Cargo](https://www.rust-lang.org/tools/install):
 
@@ -41,7 +43,42 @@ This installs the `gig` binary to `~/.cargo/bin` (make sure that's on your `PATH
 
 If you use [mise](https://mise.jdx.dev/), the repo's `mise.toml` also exposes `mise run build:release`, which produces `target/release/gig` without installing it.
 
-## Getting started
+Verify it installed correctly:
+
+```sh
+gig version
+# gig 0.1.0 (a1b2c3d)
+```
+
+### 2. Set it up
+
+Enable shell completion for subcommand and flag names too (see [`gig completion`](#gig-completion-shell) for details):
+
+```sh
+# ~/.zshrc
+echo 'source <(gig completion zsh)' >> ~/.zshrc
+
+# ~/.bashrc
+echo 'source <(gig completion bash)' >> ~/.bashrc
+
+# ~/.config/fish/config.fish
+echo 'gig completion fish | source' >> ~/.config/fish/config.fish
+```
+
+Activate shell environment - wires `gig cd` and `gig get`'s auto-cd into your shell (see [`gig shellenv`](#gig-shellenv-shell) for details):
+
+```sh
+# ~/.zshrc
+echo 'eval "$(gig shellenv zsh)"' >> ~/.zshrc
+
+# ~/.bashrc
+echo 'eval "$(gig shellenv bash)"' >> ~/.bashrc
+
+# ~/.config/fish/config.fish
+echo 'gig shellenv fish | source' >> ~/.config/fish/config.fish
+```
+
+Reload your shell (or `source` the file you edited) for it to take effect.
 
 Set a `root-dir` - the directory under which every clone will be organized. This is stored in your global git config (`gig.root-dir`), not a separate config file:
 
@@ -49,11 +86,21 @@ Set a `root-dir` - the directory under which every clone will be organized. This
 gig config root-dir ~/code
 ```
 
+### 3. Try the tool
+
 Now clone something:
 
 ```sh
 gig get https://github.com/rust-lang/rust
 # clones into ~/code/github.com/rust-lang/rust
+# with gig shellenv set up, your shell automatically cd's into that folder
+```
+
+`get` is the implicit default subcommand, so `gig <url>` alone works too:
+
+```sh
+gig https://github.com/rust-lang/rust
+# same as gig get https://github.com/rust-lang/rust
 ```
 
 Run it again any time - it's safe:
@@ -65,6 +112,8 @@ gig get https://github.com/rust-lang/rust
 gig get https://github.com/rust-lang/rust --pull
 # already cloned, pulls latest instead
 ```
+
+From here, explore what else `gig` can do - route repos into subtrees with [Category routing](#category-routing), browse and jump between clones with [`gig cd`](#gig-cd), or fine-tune [Auto-cd](#auto-cd) behavior.
 
 ## Commands
 
